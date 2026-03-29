@@ -1,8 +1,16 @@
 import { Job } from '@boringnode/queue'
 import EmbedChunksJob from './embed-chunks'
 
+export interface RawEntity {
+  name: string
+  type: 'person' | 'org' | 'place' | 'event' | 'other'
+  mentionCount: number
+  contextSnippets: string[]
+}
+
 export interface ResolveEntitiesPayload {
   episodeId: number
+  rawEntities?: RawEntity[]
 }
 
 export default class ResolveEntitiesJob extends Job<ResolveEntitiesPayload> {

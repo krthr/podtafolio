@@ -38,12 +38,12 @@
 
 ## 6. Content Analysis
 
-- [ ] 6.1 Design the combined analysis Zod schema and Gemini Flash prompt for single-pass analysis via Vercel AI SDK `generateObject` (ad stripping, topics, entities, summary)
-- [ ] 6.2 Implement the analyze job: send raw transcript to Gemini Flash via Vercel AI SDK, receive validated structured response
-- [ ] 6.3 Store clean_text (ads stripped) in transcripts table
-- [ ] 6.4 Create/link topic records in topics table and episode_topics junction
-- [ ] 6.5 Store extracted entities as raw mentions for the entity resolution step
-- [ ] 6.6 Store episode summary and key points in episode_summaries table
+- [x] 6.1 Design the combined analysis Zod schema and Gemini Flash prompt for single-pass analysis via Vercel AI SDK `generateObject` (ad stripping, topics, entities, summary)
+- [x] 6.2 Implement the analyze job: send raw transcript to Gemini Flash via Vercel AI SDK, receive validated structured response
+- [x] 6.3 Store clean_text (ads stripped) in transcripts table
+- [x] 6.4 Create/link topic records in topics table and episode_topics junction
+- [x] 6.5 Store extracted entities as raw mentions for the entity resolution step
+- [x] 6.6 Store episode summary and key points in episode_summaries table
 
 ## 7. Entity Resolution
 
