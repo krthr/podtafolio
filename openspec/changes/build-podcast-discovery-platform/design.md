@@ -99,11 +99,11 @@ The existing codebase is a bare Nuxt 4 scaffold with no application code yet.
 
 **Why**: Pure string matching fails on aliases ("Petro" vs "el presidente"). Pure LLM is expensive for every mention. The hybrid approach uses cheap vector search to narrow candidates, then uses the LLM only for ambiguous cases. The Vercel AI SDK unifies both the embedding and generation calls under a single API.
 
-### 9. Object storage for audio files
+### 9. Object storage for all audio files
 
-**Choice**: Store preprocessed audio in object storage (Cloudflare R2 or S3-compatible).
+**Choice**: Always upload preprocessed audio to object storage (Cloudflare R2 or S3-compatible), regardless of file size.
 
-**Why**: Some episodes exceed 25MB even after preprocessing. Groq accepts external URLs for larger files. Storing audio also enables re-processing if the pipeline improves. R2 has no egress fees.
+**Why**: Simplifies the transcription step — Groq always receives a URL rather than branching between direct upload and URL-based transcription. Storing all audio also enables re-processing if the pipeline improves. R2 has no egress fees, so the cost is negligible.
 
 ### 10. Apple iTunes API + Podcast Index for discovery
 

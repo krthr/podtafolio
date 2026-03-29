@@ -3,12 +3,8 @@
 ### Requirement: System transcribes audio using Groq Whisper API
 The system SHALL send preprocessed audio to the Groq Whisper API and store the resulting transcript text.
 
-#### Scenario: File under 25MB transcription
-- **WHEN** a preprocessed audio file is under 25MB
-- **THEN** the system SHALL upload the file directly to Groq Whisper API and store the returned transcript as raw_text
-
-#### Scenario: File over 25MB transcription via URL
-- **WHEN** a preprocessed audio file exceeds 25MB and has been uploaded to object storage
+#### Scenario: Transcription via object storage URL
+- **WHEN** a preprocessed audio file has been uploaded to object storage
 - **THEN** the system SHALL pass the object storage URL to Groq Whisper API and store the returned transcript as raw_text
 
 #### Scenario: Transcription API failure

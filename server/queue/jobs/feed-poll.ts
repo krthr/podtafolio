@@ -59,22 +59,66 @@ export default class FeedPollJob extends Job<FeedPollPayload> {
     const feed = await parser.parseURL(podcast.feedUrl)
     if (!feed.items || feed.items.length === 0) return
 
-    // Get existing GUIDs for this podcast to detect new episodes
+    // Get existing episodes for this podcast
     const existingEpisodes = await db
-      .select({ guid: episodes.guid })
+      .select({
+        id: episodes.id,
+        guid: episodes.guid,
+        enclosureUrl: episodes.enclosureUrl,
+        contentLength: episodes.contentLength,
+        status: episodes.status,
+      })
       .from(episodes)
       .where(eq(episodes.podcastId, podcast.id))
 
-    const existingGuids = new Set(existingEpisodes.map((e) => e.guid))
+    const existingByGuid = new Map(existingEpisodes.map((e) => [e.guid, e]))
 
     let newCount = 0
+    let reprocessCount = 0
+
     for (const item of feed.items) {
       const guid = item.guid || item.link || item.title
-      if (!guid || existingGuids.has(guid)) continue
+      if (!guid) continue
 
       const enclosureUrl = item.enclosure?.url
       if (!enclosureUrl) continue // Skip episodes without audio
 
+      const feedContentLength = item.enclosure?.length
+        ? parseInt(String(item.enclosure.length), 10)
+        : null
+
+      const existing = existingByGuid.get(guid)
+
+      if (existing) {
+        // Change detection: compare enclosure URL and Content-Length
+        const urlChanged = existing.enclosureUrl !== enclosureUrl
+        const lengthChanged =
+          feedContentLength !== null &&
+          existing.contentLength !== null &&
+          existing.contentLength !== feedContentLength
+
+        if (urlChanged || lengthChanged) {
+          // Update episode and re-enqueue for full reprocessing
+          await db
+            .update(episodes)
+            .set({
+              enclosureUrl,
+              contentLength: feedContentLength,
+              status: 'pending',
+            })
+            .where(eq(episodes.id, existing.id))
+
+          await DownloadAudioJob.dispatch({
+            episodeId: existing.id,
+            enclosureUrl,
+          })
+
+          reprocessCount++
+        }
+        continue
+      }
+
+      // New episode
       const title = item.title || 'Untitled Episode'
       const slug = `${slugify(title)}-${Date.now().toString(36)}`
 
@@ -86,15 +130,12 @@ export default class FeedPollJob extends Job<FeedPollPayload> {
           slug,
           guid,
           enclosureUrl,
-          contentLength: item.enclosure?.length
-            ? parseInt(String(item.enclosure.length), 10)
-            : null,
+          contentLength: feedContentLength,
           publishedAt: item.pubDate ? new Date(item.pubDate) : null,
           status: 'pending',
         })
         .returning()
 
-      // Enqueue download job for this new episode
       await DownloadAudioJob.dispatch({
         episodeId: episode.id,
         enclosureUrl,
@@ -103,8 +144,8 @@ export default class FeedPollJob extends Job<FeedPollPayload> {
       newCount++
     }
 
-    if (newCount > 0) {
-      console.log(`[FeedPollJob] ${podcast.title}: ${newCount} new episode(s) enqueued`)
+    if (newCount > 0 || reprocessCount > 0) {
+      console.log(`[FeedPollJob] ${podcast.title}: ${newCount} new, ${reprocessCount} reprocessed`)
     }
   }
 }

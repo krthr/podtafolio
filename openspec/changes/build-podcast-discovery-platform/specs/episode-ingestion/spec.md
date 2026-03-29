@@ -22,16 +22,12 @@ The system SHALL convert downloaded audio to mono, 16kHz sample rate, opus codec
 - **WHEN** ffmpeg is not installed or not found in PATH
 - **THEN** the system SHALL fail the job with a clear error message indicating ffmpeg is required
 
-### Requirement: System uploads large audio files to object storage
-The system SHALL upload preprocessed audio files that exceed 25MB to object storage (R2/S3) and store the resulting URL for the transcription step.
+### Requirement: System uploads all preprocessed audio to object storage
+The system SHALL always upload preprocessed audio files to object storage (R2/S3) and store the storage key for the transcription step.
 
-#### Scenario: File under 25MB
-- **WHEN** the preprocessed audio file is under 25MB
-- **THEN** the system SHALL keep the file locally for direct upload to Groq and not upload to object storage
-
-#### Scenario: File over 25MB
-- **WHEN** the preprocessed audio file exceeds 25MB
-- **THEN** the system SHALL upload it to object storage and store the public URL in the episode's audio_storage_key field
+#### Scenario: Preprocessed audio upload
+- **WHEN** the audio preprocessing step completes
+- **THEN** the system SHALL upload the preprocessed file to object storage and store the storage key in the episode's audio_storage_key field
 
 ### Requirement: System detects episode content changes
 The system SHALL detect when a previously processed episode's audio content has changed by comparing the enclosure URL and Content-Length.

@@ -25,14 +25,14 @@
 
 ## 4. Episode Ingestion
 
-- [ ] 4.1 Implement the download-audio job: fetch audio from enclosure URL, store Content-Length, save to temp directory
-- [ ] 4.2 Implement the preprocess-audio job: ffmpeg conversion to mono/16kHz/opus 32kbps
-- [ ] 4.3 Implement file size check and object storage upload for files exceeding 25MB
-- [ ] 4.4 Implement episode change detection: compare enclosure URL and Content-Length on feed polls
+- [x] 4.1 Implement the download-audio job: fetch audio from enclosure URL, store Content-Length, save to temp directory
+- [x] 4.2 Implement the preprocess-audio job: ffmpeg conversion to mono/16kHz/opus 32kbps
+- [x] 4.3 Always upload preprocessed audio to object storage
+- [x] 4.4 Implement episode change detection: compare enclosure URL and Content-Length on feed polls
 
 ## 5. Transcription
 
-- [ ] 5.1 Implement Groq Whisper API client with support for direct file upload (<25MB) and URL-based transcription (>25MB)
+- [ ] 5.1 Implement Groq Whisper API client with URL-based transcription via object storage
 - [ ] 5.2 Implement the transcribe job: send preprocessed audio to Groq, store raw transcript in transcripts table
 - [ ] 5.3 Handle Groq API errors and rate limits with appropriate retry behavior
 
