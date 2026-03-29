@@ -1,6 +1,6 @@
 ## 1. Project Setup & Infrastructure
 
-- [ ] 1.1 Install core dependencies: podcastindex, @boringnode/queue, pg, drizzle-orm (or chosen ORM), @google/generative-ai, groq-sdk
+- [ ] 1.1 Install core dependencies: podcastindex, @boringnode/queue, pg, drizzle-orm (or chosen ORM), ai (Vercel AI SDK), @ai-sdk/google, groq-sdk
 - [ ] 1.2 Configure Nuxt modules and runtime config for API keys (Groq, Gemini, Podcast Index, object storage)
 - [ ] 1.3 Set up PostgreSQL connection with pgvector extension enabled
 - [ ] 1.4 Set up object storage client (R2/S3) for audio file uploads
@@ -38,8 +38,8 @@
 
 ## 6. Content Analysis
 
-- [ ] 6.1 Design the combined Gemini Flash prompt for single-pass analysis (ad stripping, topics, entities, summary)
-- [ ] 6.2 Implement the analyze job: send raw transcript to Gemini Flash, parse structured response
+- [ ] 6.1 Design the combined analysis Zod schema and Gemini Flash prompt for single-pass analysis via Vercel AI SDK `generateObject` (ad stripping, topics, entities, summary)
+- [ ] 6.2 Implement the analyze job: send raw transcript to Gemini Flash via Vercel AI SDK, receive validated structured response
 - [ ] 6.3 Store clean_text (ads stripped) in transcripts table
 - [ ] 6.4 Create/link topic records in topics table and episode_topics junction
 - [ ] 6.5 Store extracted entities as raw mentions for the entity resolution step
@@ -47,19 +47,19 @@
 
 ## 7. Entity Resolution
 
-- [ ] 7.1 Implement entity embedding: embed each extracted entity mention using the chosen embedding model
+- [ ] 7.1 Implement entity embedding: embed each extracted entity mention using Vercel AI SDK's `embed` function
 - [ ] 7.2 Implement pgvector similarity search for existing entities with configurable threshold
-- [ ] 7.3 Implement LLM confirmation for borderline matches using Gemini Flash
+- [ ] 7.3 Implement LLM confirmation for borderline matches using Gemini Flash via Vercel AI SDK `generateObject`
 - [ ] 7.4 Implement canonical entity creation: canonical_name, slug, type, aliases array, embedding
 - [ ] 7.5 Implement the resolve-entities job: process all raw mentions from the analyze step, link or create entities, populate episode_entities
 
 ## 8. Semantic Search & Embedding
 
 - [ ] 8.1 Implement transcript chunking: split clean_text into overlapping chunks with positional offsets
-- [ ] 8.2 Implement chunk embedding using the chosen embedding model
+- [ ] 8.2 Implement chunk embedding using Vercel AI SDK's `embedMany` function
 - [ ] 8.3 Implement the embed-chunks job: chunk transcript, embed, store in transcript_chunks with pgvector
 - [ ] 8.4 Implement the search API endpoint: embed query, pgvector similarity search on transcript_chunks, return top-K results with episode metadata
-- [ ] 8.5 Implement Gemini Pro answer synthesis: send top-K chunks + query, return structured answer with source references
+- [ ] 8.5 Implement Gemini Pro answer synthesis via Vercel AI SDK `streamText`: send top-K chunks + query, stream structured answer with source references
 - [ ] 8.6 Implement semantic answer cache: store/retrieve cached answers by query embedding similarity
 - [ ] 8.7 Implement topic-aware cache invalidation in the invalidate-cache job
 - [ ] 8.8 Implement 24h TTL expiration for cached answers

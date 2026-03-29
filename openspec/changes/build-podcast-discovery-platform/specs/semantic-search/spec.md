@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: System chunks and embeds transcripts for vector search
-The system SHALL split clean transcripts into chunks and generate vector embeddings for each chunk, stored in the transcript_chunks table with pgvector.
+The system SHALL split clean transcripts into chunks and generate vector embeddings for each chunk using Vercel AI SDK's `embedMany` function, stored in the transcript_chunks table with pgvector.
 
 #### Scenario: Transcript chunking
 - **WHEN** a clean transcript is available
@@ -19,7 +19,7 @@ The system SHALL accept a natural language query, embed it, and perform vector s
 - **THEN** each result SHALL include the episode title, podcast name, published date, and the chunk text with surrounding context
 
 ### Requirement: System synthesizes AI answers from search results
-The system SHALL use Gemini Pro to synthesize a coherent answer from the top-K relevant transcript chunks, citing the source episodes.
+The system SHALL use Gemini Pro via Vercel AI SDK's `generateText` (or `streamText` for streaming UX) to synthesize a coherent answer from the top-K relevant transcript chunks, citing the source episodes.
 
 #### Scenario: Answer synthesis
 - **WHEN** relevant transcript chunks are retrieved for a query

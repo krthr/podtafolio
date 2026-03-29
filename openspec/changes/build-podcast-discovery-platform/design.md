@@ -64,15 +64,16 @@ The existing codebase is a bare Nuxt 4 scaffold with no application code yet.
 - OpenAI Whisper API: Slower, similar pricing
 - Deepgram: Good quality but higher cost for Spanish
 
-### 5. Gemini Flash (pipeline) + Gemini Pro (search synthesis)
+### 5. Vercel AI SDK as the unified LLM interface
 
-**Choice**: Split LLM usage — Gemini Flash for batch processing in the pipeline, Gemini Pro for user-facing answer synthesis.
+**Choice**: Use the Vercel AI SDK (`ai` + `@ai-sdk/google`) as the abstraction layer for all LLM interactions, with Gemini Flash for pipeline batch processing and Gemini Pro for user-facing answer synthesis.
 
-**Why**: Flash is cheap and fast for structured extraction tasks (ad stripping, topic/entity extraction, summaries) that run in batch. Pro produces higher quality prose for the search answers that users actually read. Both have large context windows suitable for full transcripts.
+**Why**: The Vercel AI SDK provides a unified interface for text generation, structured output (via `generateObject`), embeddings, and streaming. It abstracts provider-specific APIs, making it easy to swap models later. `generateObject` with Zod schemas is particularly valuable for the analysis pipeline where we need structured JSON output (topics, entities, summaries) from Gemini. The SDK also handles streaming for the search synthesis UX.
 
 **Alternatives considered**:
+- Direct `@google/generative-ai` SDK: Works but couples all code to Google's API. No structured output helpers, manual JSON parsing.
+- LangChain: Heavier abstraction with more overhead than needed for this use case
 - Single model for everything: Either too expensive (Pro for batch) or too low quality (Flash for synthesis)
-- Claude: Higher quality but more expensive for the batch volume
 - Local models (Ollama): Quality not sufficient for entity extraction in Spanish
 
 ### 6. ffmpeg preprocessing before transcription
@@ -94,9 +95,9 @@ The existing codebase is a bare Nuxt 4 scaffold with no application code yet.
 
 ### 8. Entity resolution via pgvector + LLM
 
-**Choice**: Embed entity mentions, use pgvector cosine similarity to find candidates, then use Gemini Flash to confirm match or create new canonical entity.
+**Choice**: Embed entity mentions using Vercel AI SDK's `embed` function, use pgvector cosine similarity to find candidates, then use Gemini Flash (via `generateObject`) to confirm match or create new canonical entity.
 
-**Why**: Pure string matching fails on aliases ("Petro" vs "el presidente"). Pure LLM is expensive for every mention. The hybrid approach uses cheap vector search to narrow candidates, then uses the LLM only for ambiguous cases.
+**Why**: Pure string matching fails on aliases ("Petro" vs "el presidente"). Pure LLM is expensive for every mention. The hybrid approach uses cheap vector search to narrow candidates, then uses the LLM only for ambiguous cases. The Vercel AI SDK unifies both the embedding and generation calls under a single API.
 
 ### 9. Object storage for audio files
 
@@ -178,7 +179,7 @@ Not applicable — greenfield project. Initial deployment requires:
 
 ## Open Questions
 
-1. **Embedding model**: Which model to use for transcript chunk and query embeddings? Options: Gemini's text-embedding, OpenAI's text-embedding-3-small, or a local model. Needs to balance cost, quality for Spanish text, and dimensionality for pgvector performance.
+1. **Embedding model**: Which model to use for transcript chunk and query embeddings via Vercel AI SDK's `embed`/`embedMany`? Options: Gemini's text-embedding, OpenAI's text-embedding-3-small, or a local model. Needs to balance cost, quality for Spanish text, and dimensionality for pgvector performance.
 2. **Chunk size strategy**: How to split transcripts for embedding — fixed token windows, sentence boundaries, or topic-based segments? Affects search retrieval quality.
 3. **UI language**: Should the interface be in Spanish (matching content) or English (broader reach) or bilingual?
 4. **Hosting**: Where to deploy — a VPS (Hetzner, DigitalOcean), a PaaS (Railway, Render), or cloud (AWS/GCP)? Needs to support long-running processes for the queue worker.
