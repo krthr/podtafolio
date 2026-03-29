@@ -10,7 +10,8 @@
     "postinstall": "nuxt prepare",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "seed": "tsx scripts/seed-podcasts.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.53",
@@ -24,11 +25,13 @@
     "nuxt": "^4.4.2",
     "pg": "^8.20.0",
     "podcastindex": "^1.1.2",
+    "rss-parser": "^3.13.0",
     "vue": "^3.5.30",
     "vue-router": "^5.0.4"
   },
   "devDependencies": {
     "@types/pg": "^8.20.0",
-    "drizzle-kit": "^0.31.10"
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.21.0"
   }
 }

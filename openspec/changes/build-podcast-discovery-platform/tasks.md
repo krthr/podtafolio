@@ -17,11 +17,11 @@
 
 ## 3. Podcast Discovery
 
-- [ ] 3.1 Implement Apple iTunes Search API client (search by country=CO, genre, term)
-- [ ] 3.2 Implement Podcast Index search client using the podcastindex npm package
-- [ ] 3.3 Implement podcast registration logic: parse feed metadata, create podcast record, deduplicate by feed_url
-- [ ] 3.4 Create a seed script that registers an initial curated list of ~20 Colombian podcasts
-- [ ] 3.5 Implement the feed-poll job: iterate all podcasts, parse RSS feeds, detect new episodes by guid, enqueue new episodes
+- [x] 3.1 Implement Apple iTunes Search API client (search by country=CO, genre, term)
+- [x] 3.2 Implement Podcast Index search client using the podcastindex npm package
+- [x] 3.3 Implement podcast registration logic: parse feed metadata, create podcast record, deduplicate by feed_url
+- [x] 3.4 Create a seed script that registers an initial curated list of ~20 Colombian podcasts
+- [x] 3.5 Implement the feed-poll job: iterate all podcasts, parse RSS feeds, detect new episodes by guid, enqueue new episodes
 
 ## 4. Episode Ingestion
 
