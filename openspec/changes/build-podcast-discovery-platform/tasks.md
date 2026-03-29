@@ -9,11 +9,11 @@
 
 ## 2. Job Pipeline Setup
 
-- [ ] 2.1 Configure @boringnode/queue with SQLite backing store
-- [ ] 2.2 Define job types: feed-poll, download-audio, preprocess-audio, transcribe, analyze, resolve-entities, embed-chunks, invalidate-cache
-- [ ] 2.3 Implement job chaining logic (each stage enqueues the next on success)
-- [ ] 2.4 Configure retry policy with exponential backoff for all job types
-- [ ] 2.5 Set up daily cron trigger for the feed-poll job
+- [x] 2.1 Configure @boringnode/queue with SQLite backing store
+- [x] 2.2 Define job types: feed-poll, download-audio, preprocess-audio, transcribe, analyze, resolve-entities, embed-chunks, invalidate-cache
+- [x] 2.3 Implement job chaining logic (each stage enqueues the next on success)
+- [x] 2.4 Configure retry policy with exponential backoff for all job types
+- [x] 2.5 Set up daily cron trigger for the feed-poll job
 
 ## 3. Podcast Discovery
 
