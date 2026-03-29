@@ -1,11 +1,11 @@
 ## 1. Project Setup & Infrastructure
 
-- [ ] 1.1 Install core dependencies: podcastindex, @boringnode/queue, pg, drizzle-orm (or chosen ORM), ai (Vercel AI SDK), @ai-sdk/google, groq-sdk
-- [ ] 1.2 Configure Nuxt modules and runtime config for API keys (Groq, Gemini, Podcast Index, object storage)
-- [ ] 1.3 Set up PostgreSQL connection with pgvector extension enabled
-- [ ] 1.4 Set up object storage client (R2/S3) for audio file uploads
-- [ ] 1.5 Create the database schema: podcasts, episodes, transcripts, transcript_chunks, topics, entities, episode_topics, episode_entities, episode_summaries, answer_cache tables with pgvector columns
-- [ ] 1.6 Create database migrations for all tables
+- [x] 1.1 Install core dependencies: podcastindex, @boringnode/queue, pg, drizzle-orm (or chosen ORM), ai (Vercel AI SDK), @ai-sdk/google, groq-sdk
+- [x] 1.2 Configure Nuxt modules and runtime config for API keys (Groq, Gemini, Podcast Index, object storage)
+- [x] 1.3 Set up PostgreSQL connection with pgvector extension enabled
+- [x] 1.4 Set up object storage client (R2/S3) for audio file uploads
+- [x] 1.5 Create the database schema: podcasts, episodes, transcripts, transcript_chunks, topics, entities, episode_topics, episode_entities, episode_summaries, answer_cache tables with pgvector columns
+- [x] 1.6 Create database migrations for all tables
 
 ## 2. Job Pipeline Setup
 
