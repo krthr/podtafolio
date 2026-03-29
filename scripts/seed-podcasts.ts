@@ -5,6 +5,7 @@
  *
  * Requires NUXT_DATABASE_URL to be set in .env
  */
+import 'dotenv/config'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { eq } from 'drizzle-orm'
 import RSSParser from 'rss-parser'
