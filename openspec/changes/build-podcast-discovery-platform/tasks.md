@@ -32,9 +32,9 @@
 
 ## 5. Transcription
 
-- [ ] 5.1 Implement Groq Whisper API client with URL-based transcription via object storage
-- [ ] 5.2 Implement the transcribe job: send preprocessed audio to Groq, store raw transcript in transcripts table
-- [ ] 5.3 Handle Groq API errors and rate limits with appropriate retry behavior
+- [x] 5.1 Implement Groq Whisper API client with URL-based transcription via object storage
+- [x] 5.2 Implement the transcribe job: send preprocessed audio to Groq, store raw transcript in transcripts table
+- [x] 5.3 Handle Groq API errors and rate limits with appropriate retry behavior
 
 ## 6. Content Analysis
 
