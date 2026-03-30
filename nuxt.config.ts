@@ -17,6 +17,9 @@ export default defineNuxtConfig({
     podcastIndexApiKey: "",
     podcastIndexApiSecret: "",
 
+    // Redis (BullMQ)
+    redisUrl: "",
+
     // Admin
     adminToken: "",
 

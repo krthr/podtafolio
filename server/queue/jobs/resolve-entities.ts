@@ -1,8 +1,8 @@
-import { Job } from "@boringnode/queue";
+import type { Job } from "bullmq";
 import { eq } from "drizzle-orm";
 import { episodes } from "../../database/schema";
 import { resolveEntities } from "../../services/entity-resolution";
-import EmbedChunksJob from "./embed-chunks";
+import { getQueue } from "../queues";
 
 export interface RawEntity {
   name: string;
@@ -16,46 +16,39 @@ export interface ResolveEntitiesPayload {
   rawEntities?: RawEntity[];
 }
 
-export default class ResolveEntitiesJob extends Job<ResolveEntitiesPayload> {
-  static options = {
-    queue: "default",
-    timeout: "10m",
-  };
+export async function process(job: Job<ResolveEntitiesPayload>): Promise<void> {
+  const db = useDB();
+  const { episodeId, rawEntities } = job.data;
 
-  async execute(): Promise<void> {
-    const db = useDB();
-    const { episodeId, rawEntities } = this.payload;
-
-    if (!rawEntities || rawEntities.length === 0) {
-      console.log(
-        `[ResolveEntitiesJob] Episode ${episodeId}: no entities to resolve`,
-      );
-    } else {
-      console.log(
-        `[ResolveEntitiesJob] Episode ${episodeId}: resolving ${rawEntities.length} entities`,
-      );
-      await resolveEntities(db, episodeId, rawEntities);
-      console.log(
-        `[ResolveEntitiesJob] Episode ${episodeId}: entity resolution complete`,
-      );
-    }
-
-    // Chain: resolve-entities → embed-chunks
-    await EmbedChunksJob.dispatch({
-      episodeId,
-    });
-  }
-
-  async failed(error: Error): Promise<void> {
-    const db = useDB();
-    await db
-      .update(episodes)
-      .set({ status: "failed" })
-      .where(eq(episodes.id, this.payload.episodeId));
-
-    console.error(
-      `[ResolveEntitiesJob] Episode ${this.payload.episodeId} failed:`,
-      error.message,
+  if (!rawEntities || rawEntities.length === 0) {
+    console.log(
+      `[resolve-entities] Episode ${episodeId}: no entities to resolve`,
+    );
+  } else {
+    console.log(
+      `[resolve-entities] Episode ${episodeId}: resolving ${rawEntities.length} entities`,
+    );
+    await resolveEntities(db, episodeId, rawEntities);
+    console.log(
+      `[resolve-entities] Episode ${episodeId}: entity resolution complete`,
     );
   }
+
+  await getQueue("embed-chunks").add("embed-chunks", { episodeId });
+}
+
+export async function failed(
+  job: Job<ResolveEntitiesPayload> | undefined,
+  error: Error,
+): Promise<void> {
+  if (!job) return;
+  const db = useDB();
+  await db
+    .update(episodes)
+    .set({ status: "failed" })
+    .where(eq(episodes.id, job.data.episodeId));
+  console.error(
+    `[resolve-entities] Episode ${job.data.episodeId} failed:`,
+    error.message,
+  );
 }

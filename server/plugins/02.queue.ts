@@ -1,83 +1,72 @@
-import {
-  QueueManager,
-  QueueSchemaService,
-  Worker,
-  Locator,
-} from "@boringnode/queue";
-import Knex from "knex";
-import { createQueueConfig } from "../queue/config";
+import { Worker } from "bullmq";
+import { QUEUE_NAMES, CONCURRENCY, getRedisConnection } from "../queue/config";
+import { initQueues, getQueue, closeAllQueues } from "../queue/queues";
 
-// Import jobs for manual registration (Nitro doesn't support glob-based discovery)
-import FeedPollJob from "../queue/jobs/feed-poll";
-import DownloadAudioJob from "../queue/jobs/download-audio";
-import PreprocessAudioJob from "../queue/jobs/preprocess-audio";
-import TranscribeJob from "../queue/jobs/transcribe";
-import AnalyzeJob from "../queue/jobs/analyze";
-import ResolveEntitiesJob from "../queue/jobs/resolve-entities";
-import EmbedChunksJob from "../queue/jobs/embed-chunks";
-import InvalidateCacheJob from "../queue/jobs/invalidate-cache";
+import * as feedPoll from "../queue/jobs/feed-poll";
+import * as downloadAudio from "../queue/jobs/download-audio";
+import * as preprocessAudio from "../queue/jobs/preprocess-audio";
+import * as transcribe from "../queue/jobs/transcribe";
+import * as analyze from "../queue/jobs/analyze";
+import * as resolveEntities from "../queue/jobs/resolve-entities";
+import * as embedChunks from "../queue/jobs/embed-chunks";
+import * as invalidateCache from "../queue/jobs/invalidate-cache";
+
+const processors: Record<string, { process: Function; failed?: Function }> = {
+  "feed-poll": feedPoll,
+  download: downloadAudio,
+  preprocess: preprocessAudio,
+  transcribe: transcribe,
+  analyze: analyze,
+  "resolve-entities": resolveEntities,
+  "embed-chunks": embedChunks,
+  "invalidate-cache": invalidateCache,
+};
 
 export default defineNitroPlugin(async (nitro) => {
-  const databaseUrl = useRuntimeConfig().databaseUrl;
-
-  // Ensure queue tables exist (ignore "already exists" errors on restarts)
-  const connection = Knex({
-    client: "pg",
-    connection: databaseUrl,
-  });
-  const schemaService = new QueueSchemaService(connection);
-  try {
-    await schemaService.createJobsTable("queue_jobs");
-  } catch (err: any) {
-    if (err?.code !== "42P07") throw err;
+  const redisUrl = useRuntimeConfig().redisUrl;
+  if (!redisUrl) {
+    console.warn("[Queue] NUXT_REDIS_URL not set — skipping queue init");
+    return;
   }
-  try {
-    await schemaService.createSchedulesTable("queue_schedules");
-  } catch (err: any) {
-    if (err?.code !== "42P07") throw err;
+
+  const connection = getRedisConnection();
+
+  // Initialize all queues
+  initQueues();
+
+  // Create workers
+  const workers: Worker[] = [];
+
+  for (const name of QUEUE_NAMES) {
+    const mod = processors[name]!;
+    const worker = new Worker(name, mod.process as any, {
+      connection,
+      concurrency: CONCURRENCY[name],
+    });
+
+    if (mod.failed) {
+      worker.on("failed", mod.failed as any);
+    }
+
+    workers.push(worker);
   }
-  await connection.destroy();
 
-  // Register job classes
-  Locator.register("FeedPollJob", FeedPollJob);
-  Locator.register("DownloadAudioJob", DownloadAudioJob);
-  Locator.register("PreprocessAudioJob", PreprocessAudioJob);
-  Locator.register("TranscribeJob", TranscribeJob);
-  Locator.register("AnalyzeJob", AnalyzeJob);
-  Locator.register("ResolveEntitiesJob", ResolveEntitiesJob);
-  Locator.register("EmbedChunksJob", EmbedChunksJob);
-  Locator.register("InvalidateCacheJob", InvalidateCacheJob);
+  // Register repeatable feed-poll cron (upserts — safe on restart)
+  const feedPollQueue = getQueue("feed-poll");
+  await feedPollQueue.add(
+    "daily-feed-poll",
+    {},
+    { repeat: { pattern: "0 3 * * *" } },
+  );
 
-  // Initialize QueueManager
-  const config = createQueueConfig();
-  await QueueManager.init(config);
-
-  // Set up daily feed-poll schedule (every day at 03:00 UTC)
-  await FeedPollJob.schedule({}).id("daily-feed-poll").cron("0 3 * * *");
-
-  // Start the worker
-  const worker = new Worker(config);
-
-  // Register job classes again for the worker (separate context)
-  Locator.register("FeedPollJob", FeedPollJob);
-  Locator.register("DownloadAudioJob", DownloadAudioJob);
-  Locator.register("PreprocessAudioJob", PreprocessAudioJob);
-  Locator.register("TranscribeJob", TranscribeJob);
-  Locator.register("AnalyzeJob", AnalyzeJob);
-  Locator.register("ResolveEntitiesJob", ResolveEntitiesJob);
-  Locator.register("EmbedChunksJob", EmbedChunksJob);
-  Locator.register("InvalidateCacheJob", InvalidateCacheJob);
-
-  worker.start(["default"]).catch((err) => {
-    console.error("[Queue Worker] Failed to start:", err);
-  });
-
-  console.log('[Queue] Worker started, processing jobs on "default" queue');
+  console.log(
+    `[Queue] ${workers.length} workers started (${QUEUE_NAMES.join(", ")})`,
+  );
 
   // Graceful shutdown
   nitro.hooks.hook("close", async () => {
-    await worker.stop();
-    await QueueManager.destroy();
-    console.log("[Queue] Worker stopped");
+    await Promise.all(workers.map((w) => w.close()));
+    await closeAllQueues();
+    console.log("[Queue] All workers and queues closed");
   });
 });

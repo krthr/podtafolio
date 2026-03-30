@@ -1,96 +1,84 @@
-import { Job } from "@boringnode/queue";
+import type { Job } from "bullmq";
 import { eq } from "drizzle-orm";
 import Groq from "groq-sdk";
 import { episodes, transcripts } from "../../database/schema";
 import { transcribeAudio } from "../../services/groq";
 import { getAudioUrl } from "../../utils/storage";
-import AnalyzeJob from "./analyze";
+import { getQueue } from "../queues";
 
 export interface TranscribePayload {
   episodeId: number;
 }
 
-export default class TranscribeJob extends Job<TranscribePayload> {
-  static options = {
-    queue: "default",
-    timeout: "30m",
-  };
+export async function process(job: Job<TranscribePayload>): Promise<void> {
+  const db = useDB();
+  const { episodeId } = job.data;
 
-  async execute(): Promise<void> {
-    const db = useDB();
-    const { episodeId } = this.payload;
+  const [episode] = await db
+    .select({ audioStorageKey: episodes.audioStorageKey })
+    .from(episodes)
+    .where(eq(episodes.id, episodeId))
+    .limit(1);
 
-    // Get the episode's storage key
-    const [episode] = await db
-      .select({ audioStorageKey: episodes.audioStorageKey })
-      .from(episodes)
-      .where(eq(episodes.id, episodeId))
-      .limit(1);
-
-    if (!episode?.audioStorageKey) {
-      throw new Error(`Episode ${episodeId}: no audio storage key found`);
-    }
-
-    // Build the public URL for Groq
-    const audioUrl = await getAudioUrl(episode.audioStorageKey);
-
-    // Transcribe via Groq Whisper
-    const rawText = await transcribeAudio(audioUrl);
-
-    if (!rawText || rawText.trim().length === 0) {
-      throw new Error(
-        `Episode ${episodeId}: transcription returned empty text`,
-      );
-    }
-
-    // Store transcript (upsert in case of reprocessing)
-    const existing = await db
-      .select({ id: transcripts.id })
-      .from(transcripts)
-      .where(eq(transcripts.episodeId, episodeId))
-      .limit(1);
-
-    if (existing.length > 0) {
-      await db
-        .update(transcripts)
-        .set({ rawText, cleanText: null })
-        .where(eq(transcripts.episodeId, episodeId));
-    } else {
-      await db.insert(transcripts).values({
-        episodeId,
-        rawText,
-        cleanText: null,
-      });
-    }
-
-    console.log(
-      `[TranscribeJob] Episode ${episodeId}: transcribed (${rawText.length} chars)`,
-    );
-
-    // Chain: transcribe → analyze
-    await AnalyzeJob.dispatch({ episodeId });
+  if (!episode?.audioStorageKey) {
+    throw new Error(`Episode ${episodeId}: no audio storage key found`);
   }
 
-  async failed(error: Error): Promise<void> {
-    const db = useDB();
+  const audioUrl = await getAudioUrl(episode.audioStorageKey);
+  const rawText = await transcribeAudio(audioUrl);
 
-    // Log specific Groq error details
-    if (error instanceof Groq.APIError) {
-      console.error(
-        `[TranscribeJob] Episode ${this.payload.episodeId} Groq API error:`,
-        `status=${error.status}`,
-        error.message,
-      );
-    } else {
-      console.error(
-        `[TranscribeJob] Episode ${this.payload.episodeId} failed:`,
-        error.message,
-      );
-    }
+  if (!rawText || rawText.trim().length === 0) {
+    throw new Error(`Episode ${episodeId}: transcription returned empty text`);
+  }
 
+  const existing = await db
+    .select({ id: transcripts.id })
+    .from(transcripts)
+    .where(eq(transcripts.episodeId, episodeId))
+    .limit(1);
+
+  if (existing.length > 0) {
     await db
-      .update(episodes)
-      .set({ status: "failed" })
-      .where(eq(episodes.id, this.payload.episodeId));
+      .update(transcripts)
+      .set({ rawText, cleanText: null })
+      .where(eq(transcripts.episodeId, episodeId));
+  } else {
+    await db.insert(transcripts).values({
+      episodeId,
+      rawText,
+      cleanText: null,
+    });
   }
+
+  console.log(
+    `[transcribe] Episode ${episodeId}: transcribed (${rawText.length} chars)`,
+  );
+
+  await getQueue("analyze").add("analyze", { episodeId });
+}
+
+export async function failed(
+  job: Job<TranscribePayload> | undefined,
+  error: Error,
+): Promise<void> {
+  if (!job) return;
+  const db = useDB();
+
+  if (error instanceof Groq.APIError) {
+    console.error(
+      `[transcribe] Episode ${job.data.episodeId} Groq API error:`,
+      `status=${error.status}`,
+      error.message,
+    );
+  } else {
+    console.error(
+      `[transcribe] Episode ${job.data.episodeId} failed:`,
+      error.message,
+    );
+  }
+
+  await db
+    .update(episodes)
+    .set({ status: "failed" })
+    .where(eq(episodes.id, job.data.episodeId));
 }

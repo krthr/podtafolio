@@ -1,13 +1,12 @@
-import { Job } from "@boringnode/queue";
-import { eq, and, inArray } from "drizzle-orm";
+import type { Job } from "bullmq";
+import { eq } from "drizzle-orm";
 import RSSParser from "rss-parser";
 import { podcasts, episodes } from "../../database/schema";
-import DownloadAudioJob from "./download-audio";
+import { getQueue } from "../queues";
 
 const parser = new RSSParser();
 
 export interface FeedPollPayload {
-  /** If set, poll only this podcast. Otherwise poll all. */
   podcastId?: number;
 }
 
@@ -20,134 +19,122 @@ function slugify(text: string): string {
     .replace(/^-|-$/g, "");
 }
 
-export default class FeedPollJob extends Job<FeedPollPayload> {
-  static options = {
-    queue: "default",
-    timeout: "10m",
-  };
+export async function process(job: Job<FeedPollPayload>): Promise<void> {
+  const db = useDB();
 
-  async execute(): Promise<void> {
-    const db = useDB();
-
-    // Get podcasts to poll
-    let podcastList;
-    if (this.payload.podcastId) {
-      podcastList = await db
-        .select()
-        .from(podcasts)
-        .where(eq(podcasts.id, this.payload.podcastId));
-    } else {
-      podcastList = await db.select().from(podcasts);
-    }
-
-    console.log(`[FeedPollJob] Polling ${podcastList.length} podcast(s)`);
-
-    for (const podcast of podcastList) {
-      try {
-        await this.pollFeed(db, podcast);
-      } catch (err) {
-        console.error(`[FeedPollJob] Error polling ${podcast.title}:`, err);
-        // Continue to next podcast rather than failing the whole job
-      }
-    }
+  let podcastList;
+  if (job.data.podcastId) {
+    podcastList = await db
+      .select()
+      .from(podcasts)
+      .where(eq(podcasts.id, job.data.podcastId));
+  } else {
+    podcastList = await db.select().from(podcasts);
   }
 
-  private async pollFeed(
-    db: ReturnType<typeof useDB>,
-    podcast: typeof podcasts.$inferSelect,
-  ): Promise<void> {
-    const feed = await parser.parseURL(podcast.feedUrl);
-    if (!feed.items || feed.items.length === 0) return;
+  console.log(`[feed-poll] Polling ${podcastList.length} podcast(s)`);
 
-    // Get existing episodes for this podcast
-    const existingEpisodes = await db
-      .select({
-        id: episodes.id,
-        guid: episodes.guid,
-        enclosureUrl: episodes.enclosureUrl,
-        contentLength: episodes.contentLength,
-        status: episodes.status,
-      })
-      .from(episodes)
-      .where(eq(episodes.podcastId, podcast.id));
+  for (const podcast of podcastList) {
+    try {
+      await pollFeed(db, podcast);
+    } catch (err) {
+      console.error(`[feed-poll] Error polling ${podcast.title}:`, err);
+    }
+  }
+}
 
-    const existingByGuid = new Map(existingEpisodes.map((e) => [e.guid, e]));
+async function pollFeed(
+  db: ReturnType<typeof useDB>,
+  podcast: typeof podcasts.$inferSelect,
+): Promise<void> {
+  const feed = await parser.parseURL(podcast.feedUrl);
+  if (!feed.items || feed.items.length === 0) return;
 
-    let newCount = 0;
-    let reprocessCount = 0;
+  const existingEpisodes = await db
+    .select({
+      id: episodes.id,
+      guid: episodes.guid,
+      enclosureUrl: episodes.enclosureUrl,
+      contentLength: episodes.contentLength,
+      status: episodes.status,
+    })
+    .from(episodes)
+    .where(eq(episodes.podcastId, podcast.id));
 
-    for (const item of feed.items) {
-      const guid = item.guid || item.link || item.title;
-      if (!guid) continue;
+  const existingByGuid = new Map(existingEpisodes.map((e) => [e.guid, e]));
+  const downloadQueue = getQueue("download");
 
-      const enclosureUrl = item.enclosure?.url;
-      if (!enclosureUrl) continue; // Skip episodes without audio
+  let newCount = 0;
+  let reprocessCount = 0;
 
-      const feedContentLength = item.enclosure?.length
-        ? parseInt(String(item.enclosure.length), 10)
-        : null;
+  for (const item of feed.items) {
+    const guid = item.guid || item.link || item.title;
+    if (!guid) continue;
 
-      const existing = existingByGuid.get(guid);
+    const enclosureUrl = item.enclosure?.url;
+    if (!enclosureUrl) continue;
 
-      if (existing) {
-        // Change detection: compare enclosure URL and Content-Length
-        const urlChanged = existing.enclosureUrl !== enclosureUrl;
-        const lengthChanged =
-          feedContentLength !== null &&
-          existing.contentLength !== null &&
-          existing.contentLength !== feedContentLength;
+    const feedContentLength = item.enclosure?.length
+      ? parseInt(String(item.enclosure.length), 10)
+      : null;
 
-        if (urlChanged || lengthChanged) {
-          // Update episode and re-enqueue for full reprocessing
-          await db
-            .update(episodes)
-            .set({
-              enclosureUrl,
-              contentLength: feedContentLength,
-              status: "pending",
-            })
-            .where(eq(episodes.id, existing.id));
+    const existing = existingByGuid.get(guid);
 
-          await DownloadAudioJob.dispatch({
-            episodeId: existing.id,
+    if (existing) {
+      const urlChanged = existing.enclosureUrl !== enclosureUrl;
+      const lengthChanged =
+        feedContentLength !== null &&
+        existing.contentLength !== null &&
+        existing.contentLength !== feedContentLength;
+
+      if (urlChanged || lengthChanged) {
+        await db
+          .update(episodes)
+          .set({
             enclosureUrl,
-          });
+            contentLength: feedContentLength,
+            status: "pending",
+          })
+          .where(eq(episodes.id, existing.id));
 
-          reprocessCount++;
-        }
-        continue;
-      }
-
-      // New episode
-      const title = item.title || "Untitled Episode";
-      const slug = `${slugify(title)}-${Date.now().toString(36)}`;
-
-      const [episode] = await db
-        .insert(episodes)
-        .values({
-          podcastId: podcast.id,
-          title,
-          slug,
-          guid,
+        await downloadQueue.add("download", {
+          episodeId: existing.id,
           enclosureUrl,
-          contentLength: feedContentLength,
-          publishedAt: item.pubDate ? new Date(item.pubDate) : null,
-          status: "pending",
-        })
-        .returning();
+        });
 
-      await DownloadAudioJob.dispatch({
-        episodeId: episode.id,
+        reprocessCount++;
+      }
+      continue;
+    }
+
+    const title = item.title || "Untitled Episode";
+    const slug = `${slugify(title)}-${Date.now().toString(36)}`;
+
+    const [episode] = await db
+      .insert(episodes)
+      .values({
+        podcastId: podcast.id,
+        title,
+        slug,
+        guid,
         enclosureUrl,
-      });
+        contentLength: feedContentLength,
+        publishedAt: item.pubDate ? new Date(item.pubDate) : null,
+        status: "pending",
+      })
+      .returning();
 
-      newCount++;
-    }
+    await downloadQueue.add("download", {
+      episodeId: episode!.id,
+      enclosureUrl,
+    });
 
-    if (newCount > 0 || reprocessCount > 0) {
-      console.log(
-        `[FeedPollJob] ${podcast.title}: ${newCount} new, ${reprocessCount} reprocessed`,
-      );
-    }
+    newCount++;
+  }
+
+  if (newCount > 0 || reprocessCount > 0) {
+    console.log(
+      `[feed-poll] ${podcast.title}: ${newCount} new, ${reprocessCount} reprocessed`,
+    );
   }
 }

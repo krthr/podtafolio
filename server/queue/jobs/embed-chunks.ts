@@ -1,89 +1,76 @@
-import { Job } from "@boringnode/queue";
-import { eq, sql } from "drizzle-orm";
+import type { Job } from "bullmq";
+import { eq } from "drizzle-orm";
 import { episodes, transcripts, transcriptChunks } from "../../database/schema";
 import { chunkTranscript, embedChunks } from "../../services/search";
-import InvalidateCacheJob from "./invalidate-cache";
+import { getQueue } from "../queues";
 
 export interface EmbedChunksPayload {
   episodeId: number;
 }
 
-export default class EmbedChunksJob extends Job<EmbedChunksPayload> {
-  static options = {
-    queue: "default",
-    timeout: "15m",
-  };
+export async function process(job: Job<EmbedChunksPayload>): Promise<void> {
+  const db = useDB();
+  const { episodeId } = job.data;
 
-  async execute(): Promise<void> {
-    const db = useDB();
-    const { episodeId } = this.payload;
+  const [transcript] = await db
+    .select({ id: transcripts.id, cleanText: transcripts.cleanText })
+    .from(transcripts)
+    .where(eq(transcripts.episodeId, episodeId))
+    .limit(1);
 
-    // Get clean transcript
-    const [transcript] = await db
-      .select({ id: transcripts.id, cleanText: transcripts.cleanText })
-      .from(transcripts)
-      .where(eq(transcripts.episodeId, episodeId))
-      .limit(1);
-
-    if (!transcript?.cleanText) {
-      console.log(
-        `[EmbedChunksJob] Episode ${episodeId}: no clean transcript, skipping`,
-      );
-      await InvalidateCacheJob.dispatch({ episodeId });
-      return;
-    }
-
-    // 8.1 — Chunk the transcript
-    const chunks = chunkTranscript(transcript.cleanText);
+  if (!transcript?.cleanText) {
     console.log(
-      `[EmbedChunksJob] Episode ${episodeId}: ${chunks.length} chunks`,
+      `[embed-chunks] Episode ${episodeId}: no clean transcript, skipping`,
     );
-
-    // 8.2 — Embed all chunks
-    const embeddings = await embedChunks(chunks.map((c) => c.text));
-
-    // 8.3 — Store chunks with embeddings in transcript_chunks
-    // Delete existing chunks for this episode first (in case of re-processing)
-    await db
-      .delete(transcriptChunks)
-      .where(eq(transcriptChunks.episodeId, episodeId));
-
-    for (let i = 0; i < chunks.length; i++) {
-      await db.insert(transcriptChunks).values({
-        transcriptId: transcript.id,
-        episodeId,
-        chunkIndex: chunks[i]!.chunkIndex,
-        text: chunks[i]!.text,
-        embedding: embeddings[i]!,
-        startOffset: chunks[i]!.startOffset,
-        endOffset: chunks[i]!.endOffset,
-      });
-    }
-
-    // Mark episode as done
-    await db
-      .update(episodes)
-      .set({ status: "done" })
-      .where(eq(episodes.id, episodeId));
-
-    console.log(
-      `[EmbedChunksJob] Episode ${episodeId}: stored ${chunks.length} embedded chunks`,
-    );
-
-    // Chain: embed-chunks → invalidate-cache (final stage)
-    await InvalidateCacheJob.dispatch({ episodeId });
+    await getQueue("invalidate-cache").add("invalidate-cache", { episodeId });
+    return;
   }
 
-  async failed(error: Error): Promise<void> {
-    const db = useDB();
-    await db
-      .update(episodes)
-      .set({ status: "failed" })
-      .where(eq(episodes.id, this.payload.episodeId));
+  const chunks = chunkTranscript(transcript.cleanText);
+  console.log(`[embed-chunks] Episode ${episodeId}: ${chunks.length} chunks`);
 
-    console.error(
-      `[EmbedChunksJob] Episode ${this.payload.episodeId} failed:`,
-      error.message,
-    );
+  const embeddings = await embedChunks(chunks.map((c) => c.text));
+
+  await db
+    .delete(transcriptChunks)
+    .where(eq(transcriptChunks.episodeId, episodeId));
+
+  for (let i = 0; i < chunks.length; i++) {
+    await db.insert(transcriptChunks).values({
+      transcriptId: transcript.id,
+      episodeId,
+      chunkIndex: chunks[i]!.chunkIndex,
+      text: chunks[i]!.text,
+      embedding: embeddings[i]!,
+      startOffset: chunks[i]!.startOffset,
+      endOffset: chunks[i]!.endOffset,
+    });
   }
+
+  await db
+    .update(episodes)
+    .set({ status: "done" })
+    .where(eq(episodes.id, episodeId));
+
+  console.log(
+    `[embed-chunks] Episode ${episodeId}: stored ${chunks.length} embedded chunks`,
+  );
+
+  await getQueue("invalidate-cache").add("invalidate-cache", { episodeId });
+}
+
+export async function failed(
+  job: Job<EmbedChunksPayload> | undefined,
+  error: Error,
+): Promise<void> {
+  if (!job) return;
+  const db = useDB();
+  await db
+    .update(episodes)
+    .set({ status: "failed" })
+    .where(eq(episodes.id, job.data.episodeId));
+  console.error(
+    `[embed-chunks] Episode ${job.data.episodeId} failed:`,
+    error.message,
+  );
 }
