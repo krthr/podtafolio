@@ -28,6 +28,11 @@
         </div>
       </div>
 
+      <!-- Feedback banner -->
+      <div v-if="feedback" class="feedback-banner" :class="feedback.type">
+        {{ feedback.message }}
+      </div>
+
       <div v-if="error" class="error-banner">
         Failed to load queue data. {{ error.data?.error || "" }}
       </div>
@@ -45,6 +50,34 @@
             <span class="summary-label">{{ s }}</span>
           </div>
         </div>
+
+        <!-- Quick Actions -->
+        <section class="section">
+          <h2 class="section-title">Quick Actions</h2>
+          <div class="actions-panel">
+            <button class="action-btn" @click="pollFeeds">
+              Poll All Feeds
+            </button>
+            <form class="reprocess-form" @submit.prevent="reprocessEpisode">
+              <span class="reprocess-label">Reprocess Episode</span>
+              <input
+                v-model.number="reprocessId"
+                type="number"
+                placeholder="Episode ID"
+                class="reprocess-input"
+                min="1"
+              />
+              <select v-model="reprocessStage" class="filter-select">
+                <option value="download">Download</option>
+                <option value="transcribe">Transcribe</option>
+                <option value="analyze">Analyze</option>
+              </select>
+              <button type="submit" class="action-btn" :disabled="!reprocessId">
+                Go
+              </button>
+            </form>
+          </div>
+        </section>
 
         <!-- Schedules -->
         <section v-if="data.schedules.length > 0" class="section">
@@ -101,6 +134,7 @@
                   <th>Acquired</th>
                   <th>Finished</th>
                   <th>Error</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -116,6 +150,15 @@
                   <td>{{ formatEpoch(job.finishedAt) }}</td>
                   <td class="error-cell" :title="job.error || ''">
                     {{ truncate(job.error, 60) }}
+                  </td>
+                  <td>
+                    <button
+                      v-if="job.status === 'failed'"
+                      class="retry-btn"
+                      @click="retryJob(job.id, job.queue)"
+                    >
+                      Retry
+                    </button>
                   </td>
                 </tr>
               </tbody>
@@ -137,6 +180,11 @@ const tokenInput = ref("");
 const authError = ref(false);
 const autoRefresh = ref(true);
 const statusFilter = ref("");
+const reprocessId = ref<number | null>(null);
+const reprocessStage = ref("download");
+const feedback = ref<{ type: "success" | "error"; message: string } | null>(
+  null,
+);
 
 onMounted(() => {
   token.value = sessionStorage.getItem("admin_token") || "";
@@ -198,6 +246,46 @@ onMounted(() => {
 onUnmounted(() => {
   stopPolling();
 });
+
+function showFeedback(type: "success" | "error", message: string) {
+  feedback.value = { type, message };
+  setTimeout(() => {
+    feedback.value = null;
+  }, 4000);
+}
+
+async function dispatch(body: Record<string, unknown>) {
+  try {
+    const res = await $fetch("/api/admin/queue/dispatch", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token.value}` },
+      body,
+    });
+    showFeedback("success", (res as any).message || "Done");
+    refresh();
+  } catch (err: any) {
+    const msg = err?.data?.data?.error || err?.data?.error || "Dispatch failed";
+    showFeedback("error", msg);
+  }
+}
+
+function pollFeeds() {
+  if (!confirm("Poll all podcast feeds now?")) return;
+  dispatch({ action: "poll-feeds" });
+}
+
+function reprocessEpisode() {
+  if (!reprocessId.value) return;
+  dispatch({
+    action: "reprocess",
+    episodeId: reprocessId.value,
+    startFrom: reprocessStage.value,
+  });
+}
+
+function retryJob(jobId: string, queue: string) {
+  dispatch({ action: "retry", jobId, queue });
+}
 
 function getCount(status: string): number {
   if (!data.value) return 0;
@@ -457,6 +545,90 @@ function truncate(text: string | null, max: number): string {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.feedback-banner {
+  padding: 0.625rem 1rem;
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.feedback-banner.success {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.feedback-banner.error {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.actions-panel {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  background: #fff;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.action-btn {
+  padding: 0.375rem 0.75rem;
+  background: #1e293b;
+  color: #fff;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.action-btn:hover {
+  background: #334155;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.reprocess-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.reprocess-label {
+  font-size: 0.8125rem;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.reprocess-input {
+  width: 100px;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.8125rem;
+}
+
+.retry-btn {
+  padding: 0.25rem 0.5rem;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fbbf24;
+  border-radius: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.retry-btn:hover {
+  background: #fde68a;
 }
 
 .empty {
