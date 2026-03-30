@@ -16,4 +16,4 @@ RUN npm run build
 
 EXPOSE 3000
 
-CMD ["node", ".output/server/index.mjs"]
+CMD ["sh", "-c", "npx drizzle-kit migrate && node .output/server/index.mjs"]
