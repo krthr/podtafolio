@@ -6,7 +6,7 @@ import { createBullBoard } from "@bull-board/api";
 import { initQueues } from "~~/server/queue/queues";
 
 const serverAdapter = new H3Adapter();
-serverAdapter.setBasePath("/api/bullmq");
+serverAdapter.setBasePath("/api/admin/bullmq");
 
 const queues = initQueues();
 
