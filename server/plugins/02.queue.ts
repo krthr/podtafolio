@@ -15,14 +15,22 @@ import InvalidateCacheJob from '../queue/jobs/invalidate-cache'
 export default defineNitroPlugin(async (nitro) => {
   const databaseUrl = useRuntimeConfig().databaseUrl
 
-  // Ensure queue tables exist
+  // Ensure queue tables exist (ignore "already exists" errors on restarts)
   const connection = Knex({
     client: 'pg',
     connection: databaseUrl,
   })
   const schemaService = new QueueSchemaService(connection)
-  await schemaService.createJobsTable('queue_jobs')
-  await schemaService.createSchedulesTable('queue_schedules')
+  try {
+    await schemaService.createJobsTable('queue_jobs')
+  } catch (err: any) {
+    if (err?.code !== '42P07') throw err
+  }
+  try {
+    await schemaService.createSchedulesTable('queue_schedules')
+  } catch (err: any) {
+    if (err?.code !== '42P07') throw err
+  }
   await connection.destroy()
 
   // Register job classes

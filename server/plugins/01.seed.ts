@@ -1,8 +1,5 @@
 import { eq, count } from 'drizzle-orm'
-import RSSParser from 'rss-parser'
 import { podcasts } from '../database/schema'
-
-const parser = new RSSParser()
 
 function slugify(text: string): string {
   return text
@@ -64,29 +61,14 @@ export default defineNitroPlugin(async () => {
       continue
     }
 
-    let feedMeta: { title?: string; description?: string; image?: string; language?: string } = {}
-    try {
-      const feed = await parser.parseURL(seed.feedUrl)
-      feedMeta = {
-        title: feed.title,
-        description: feed.description,
-        image: feed.image?.url || feed.itunes?.image,
-        language: feed.language,
-      }
-    } catch {
-      console.warn(`[Seed] Could not parse feed for ${seed.title}`)
-    }
-
-    const title = feedMeta.title || seed.title
+    const title = seed.title
     const slug = `${slugify(title)}-${Date.now().toString(36)}`
 
     await db.insert(podcasts).values({
       title,
       slug,
       feedUrl: seed.feedUrl,
-      artworkUrl: feedMeta.image || null,
-      description: feedMeta.description || null,
-      language: feedMeta.language || 'es',
+      language: 'es',
     })
 
     console.log(`[Seed] OK: ${title}`)
