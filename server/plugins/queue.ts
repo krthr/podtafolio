@@ -1,7 +1,5 @@
 import { QueueManager, QueueSchemaService, Worker, Locator } from '@boringnode/queue'
 import Knex from 'knex'
-import { resolve, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { createQueueConfig } from '../queue/config'
 
 // Import jobs for manual registration (Nitro doesn't support glob-based discovery)
@@ -14,20 +12,17 @@ import ResolveEntitiesJob from '../queue/jobs/resolve-entities'
 import EmbedChunksJob from '../queue/jobs/embed-chunks'
 import InvalidateCacheJob from '../queue/jobs/invalidate-cache'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-
 export default defineNitroPlugin(async (nitro) => {
-  const dbPath = resolve(__dirname, '../../queue.db')
+  const databaseUrl = useRuntimeConfig().databaseUrl
 
   // Ensure queue tables exist
   const connection = Knex({
-    client: 'better-sqlite3',
-    connection: { filename: dbPath },
-    useNullAsDefault: true,
+    client: 'pg',
+    connection: databaseUrl,
   })
   const schemaService = new QueueSchemaService(connection)
-  await schemaService.createJobsTable()
-  await schemaService.createSchedulesTable()
+  await schemaService.createJobsTable('queue_jobs')
+  await schemaService.createSchedulesTable('queue_schedules')
   await connection.destroy()
 
   // Register job classes

@@ -8,6 +8,5 @@ dist
 .env
 .env.*
 !.env.example
-queue.db
 .git
 openspec

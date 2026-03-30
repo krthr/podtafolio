@@ -1,19 +1,16 @@
 import type { QueueManagerConfig } from '@boringnode/queue'
 import { exponentialBackoff } from '@boringnode/queue'
 import { knex } from '@boringnode/queue/drivers/knex_adapter'
-import { fileURLToPath } from 'node:url'
-import { resolve, dirname } from 'node:path'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export function createQueueConfig(): QueueManagerConfig {
+  const databaseUrl = useRuntimeConfig().databaseUrl
+
   return {
-    default: 'sqlite',
+    default: 'postgres',
     adapters: {
-      sqlite: knex({
-        client: 'better-sqlite3',
-        connection: { filename: resolve(__dirname, '../../queue.db') },
-        useNullAsDefault: true,
+      postgres: knex({
+        client: 'pg',
+        connection: databaseUrl,
       }),
     },
     retry: {
