@@ -17,6 +17,9 @@ export default defineNuxtConfig({
     podcastIndexApiKey: '',
     podcastIndexApiSecret: '',
 
+    // Admin
+    adminToken: '',
+
     // Object storage (R2/S3-compatible)
     s3Endpoint: '',
     s3Region: '',
