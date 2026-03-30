@@ -20,8 +20,6 @@ export default defineNuxtConfig({
     // Redis (BullMQ)
     redisUrl: "",
 
-    // Admin
-    adminToken: "",
 
     // Object storage (R2/S3-compatible)
     s3Endpoint: "",
