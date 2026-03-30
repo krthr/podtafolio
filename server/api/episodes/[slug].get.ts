@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq } from "drizzle-orm";
 import {
   episodes,
   podcasts,
@@ -8,11 +8,11 @@ import {
   topics,
   episodeEntities,
   entities,
-} from '../../database/schema'
+} from "../../database/schema";
 
 export default defineEventHandler(async (event) => {
-  const slug = getRouterParam(event, 'slug')!
-  const db = useDB()
+  const slug = getRouterParam(event, "slug")!;
+  const db = useDB();
 
   // Get episode with podcast
   const [episode] = await db
@@ -31,10 +31,10 @@ export default defineEventHandler(async (event) => {
     .from(episodes)
     .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
     .where(eq(episodes.slug, slug))
-    .limit(1)
+    .limit(1);
 
   if (!episode) {
-    throw createError({ statusCode: 404, statusMessage: 'Episode not found' })
+    throw createError({ statusCode: 404, statusMessage: "Episode not found" });
   }
 
   // Get summary
@@ -45,14 +45,14 @@ export default defineEventHandler(async (event) => {
     })
     .from(episodeSummaries)
     .where(eq(episodeSummaries.episodeId, episode.id))
-    .limit(1)
+    .limit(1);
 
   // Get clean transcript
   const [transcript] = await db
     .select({ cleanText: transcripts.cleanText })
     .from(transcripts)
     .where(eq(transcripts.episodeId, episode.id))
-    .limit(1)
+    .limit(1);
 
   // Get topics
   const episodeTopicList = await db
@@ -64,7 +64,7 @@ export default defineEventHandler(async (event) => {
     })
     .from(episodeTopics)
     .innerJoin(topics, eq(topics.id, episodeTopics.topicId))
-    .where(eq(episodeTopics.episodeId, episode.id))
+    .where(eq(episodeTopics.episodeId, episode.id));
 
   // Get entities
   const episodeEntityList = await db
@@ -78,7 +78,7 @@ export default defineEventHandler(async (event) => {
     })
     .from(episodeEntities)
     .innerJoin(entities, eq(entities.id, episodeEntities.entityId))
-    .where(eq(episodeEntities.episodeId, episode.id))
+    .where(eq(episodeEntities.episodeId, episode.id));
 
   return {
     episode,
@@ -86,5 +86,5 @@ export default defineEventHandler(async (event) => {
     transcript: transcript?.cleanText ?? null,
     topics: episodeTopicList,
     entities: episodeEntityList,
-  }
-})
+  };
+});

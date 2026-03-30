@@ -2,7 +2,12 @@
   <div>
     <h1 class="page-title">Descubre podcasts colombianos</h1>
 
-    <template v-if="data && (data.trendingTopics.length > 0 || data.recentEpisodes.length > 0)">
+    <template
+      v-if="
+        data &&
+        (data.trendingTopics.length > 0 || data.recentEpisodes.length > 0)
+      "
+    >
       <!-- Trending Topics -->
       <section v-if="data.trendingTopics.length > 0" class="section">
         <h2 class="section-title">Temas en tendencia</h2>
@@ -23,20 +28,25 @@
       <section v-if="data.recentEpisodes.length > 0" class="section">
         <h2 class="section-title">Episodios recientes</h2>
         <div class="episodes-list">
-          <article v-for="ep in data.recentEpisodes" :key="ep.id" class="episode-card">
+          <article
+            v-for="ep in data.recentEpisodes"
+            :key="ep.id"
+            class="episode-card"
+          >
             <div class="episode-meta">
               <NuxtLink :to="`/podcast/${ep.podcastSlug}`" class="podcast-name">
                 {{ ep.podcastTitle }}
               </NuxtLink>
               <span v-if="ep.publishedAt" class="episode-date">
-                {{ new Date(ep.publishedAt).toLocaleDateString('es-CO') }}
+                {{ new Date(ep.publishedAt).toLocaleDateString("es-CO") }}
               </span>
             </div>
             <NuxtLink :to="`/episode/${ep.slug}`" class="episode-title">
               {{ ep.title }}
             </NuxtLink>
             <p v-if="ep.summary" class="episode-summary">
-              {{ ep.summary.slice(0, 200) }}{{ ep.summary.length > 200 ? '...' : '' }}
+              {{ ep.summary.slice(0, 200)
+              }}{{ ep.summary.length > 200 ? "..." : "" }}
             </p>
           </article>
         </div>
@@ -52,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-const { data, pending } = await useFetch('/api/landing')
+const { data, pending } = await useFetch("/api/landing");
 </script>
 
 <style scoped>

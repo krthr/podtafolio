@@ -27,18 +27,18 @@ Use numeric prefixes to control plugin load order so seeding happens before the 
 
 ## Decisions
 
-| Decision | Choice | Rationale |
-|---|---|---|
-| Run frequency | Every boot, unconditionally | Idempotent by design; 20 SELECTs is negligible |
-| Short-circuit | Check `podcasts` count first, skip if > 0 | One fast query avoids 20 feed parses on every restart |
-| Plugin ordering | Numeric prefixes (`01.seed`, `02.queue`) | Seed must insert podcasts before queue worker starts |
-| DB connection | `useDB()` | Shared pool, no standalone connection needed |
+| Decision        | Choice                                    | Rationale                                             |
+| --------------- | ----------------------------------------- | ----------------------------------------------------- |
+| Run frequency   | Every boot, unconditionally               | Idempotent by design; 20 SELECTs is negligible        |
+| Short-circuit   | Check `podcasts` count first, skip if > 0 | One fast query avoids 20 feed parses on every restart |
+| Plugin ordering | Numeric prefixes (`01.seed`, `02.queue`)  | Seed must insert podcasts before queue worker starts  |
+| DB connection   | `useDB()`                                 | Shared pool, no standalone connection needed          |
 
 ## Files affected
 
-| File | Change |
-|---|---|
-| `server/plugins/01.seed.ts` | New — seed logic as Nitro plugin |
-| `server/plugins/queue.ts` → `server/plugins/02.queue.ts` | Rename for ordering |
-| `scripts/seed-podcasts.ts` | Delete |
-| `package.json` | Remove `seed` script |
+| File                                                     | Change                           |
+| -------------------------------------------------------- | -------------------------------- |
+| `server/plugins/01.seed.ts`                              | New — seed logic as Nitro plugin |
+| `server/plugins/queue.ts` → `server/plugins/02.queue.ts` | Rename for ordering              |
+| `scripts/seed-podcasts.ts`                               | Delete                           |
+| `package.json`                                           | Remove `seed` script             |

@@ -26,21 +26,21 @@ Switch the `@boringnode/queue` Knex adapter from `better-sqlite3` to `pg`, point
 
 ## Decisions
 
-| Decision | Choice | Rationale |
-|---|---|---|
-| Connection strategy | Separate Knex pool for queue | Avoids coupling with Drizzle's `node-postgres` pool; `@boringnode/queue` expects Knex |
-| Table naming | `queue_jobs`, `queue_schedules` | Prevents collisions with app tables, clear ownership |
-| Existing job migration | None — redeploy clean | Daily schedule re-creates on boot; risk of losing in-flight jobs is low |
+| Decision               | Choice                          | Rationale                                                                             |
+| ---------------------- | ------------------------------- | ------------------------------------------------------------------------------------- |
+| Connection strategy    | Separate Knex pool for queue    | Avoids coupling with Drizzle's `node-postgres` pool; `@boringnode/queue` expects Knex |
+| Table naming           | `queue_jobs`, `queue_schedules` | Prevents collisions with app tables, clear ownership                                  |
+| Existing job migration | None — redeploy clean           | Daily schedule re-creates on boot; risk of losing in-flight jobs is low               |
 
 ## Files affected
 
-| File | Change |
-|---|---|
-| `server/queue/config.ts` | Swap adapter to `pg`, read `NUXT_DATABASE_URL`, pass prefixed table names |
+| File                      | Change                                                                             |
+| ------------------------- | ---------------------------------------------------------------------------------- |
+| `server/queue/config.ts`  | Swap adapter to `pg`, read `NUXT_DATABASE_URL`, pass prefixed table names          |
 | `server/plugins/queue.ts` | Point schema service at Postgres, use prefixed table names, remove `queue.db` path |
-| `.gitignore` | Remove `queue.db` entry |
-| `.dockerignore` | Remove `queue.db` entry |
-| `package.json` | Remove `better-sqlite3` |
+| `.gitignore`              | Remove `queue.db` entry                                                            |
+| `.dockerignore`           | Remove `queue.db` entry                                                            |
+| `package.json`            | Remove `better-sqlite3`                                                            |
 
 ## Risks
 

@@ -21,17 +21,20 @@
 </template>
 
 <script setup lang="ts">
-const router = useRouter()
-const route = useRoute()
-const query = ref((route.query.q as string) || '')
+const router = useRouter();
+const route = useRoute();
+const query = ref((route.query.q as string) || "");
 
-watch(() => route.query.q, (q) => {
-  if (typeof q === 'string') query.value = q
-})
+watch(
+  () => route.query.q,
+  (q) => {
+    if (typeof q === "string") query.value = q;
+  },
+);
 
 function onSearch() {
   if (query.value.trim()) {
-    router.push({ path: '/search', query: { q: query.value.trim() } })
+    router.push({ path: "/search", query: { q: query.value.trim() } });
   }
 }
 </script>
@@ -46,7 +49,8 @@ function onSearch() {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: #1a1a1a;
   background: #fafafa;
   line-height: 1.6;

@@ -1,20 +1,20 @@
-import { embed, generateObject } from 'ai'
-import { google } from '@ai-sdk/google'
-import { eq, sql } from 'drizzle-orm'
-import { z } from 'zod'
-import { entities, episodeEntities } from '../database/schema'
-import type { RawEntity } from '../queue/jobs/resolve-entities'
+import { embed, generateObject } from "ai";
+import { google } from "@ai-sdk/google";
+import { eq, sql } from "drizzle-orm";
+import { z } from "zod";
+import { entities, episodeEntities } from "../database/schema";
+import type { RawEntity } from "../queue/jobs/resolve-entities";
 
 // ── Config ───────────────────────────────────────────────
 
-const EMBEDDING_MODEL = google.textEmbeddingModel('gemini-embedding-2-preview')
-const EMBEDDING_PROVIDER_OPTIONS = { google: { outputDimensionality: 768 } }
-const LLM_MODEL = google('gemini-3-flash')
+const EMBEDDING_MODEL = google.textEmbeddingModel("gemini-embedding-2-preview");
+const EMBEDDING_PROVIDER_OPTIONS = { google: { outputDimensionality: 768 } };
+const LLM_MODEL = google("gemini-3-flash");
 
 /** Above this: auto-match (confirmed same entity) */
-const HIGH_SIMILARITY_THRESHOLD = 0.85
+const HIGH_SIMILARITY_THRESHOLD = 0.85;
 /** Below this: auto-create (confirmed new entity) */
-const LOW_SIMILARITY_THRESHOLD = 0.70
+const LOW_SIMILARITY_THRESHOLD = 0.7;
 
 // ── 7.1 — Entity Embedding ──────────────────────────────
 
@@ -26,19 +26,19 @@ export async function embedEntity(name: string): Promise<number[]> {
     model: EMBEDDING_MODEL,
     value: name,
     providerOptions: EMBEDDING_PROVIDER_OPTIONS,
-  })
-  return embedding
+  });
+  return embedding;
 }
 
 // ── 7.2 — pgvector Similarity Search ────────────────────
 
 interface EntityCandidate {
-  id: number
-  canonicalName: string
-  slug: string
-  type: string
-  aliases: string[] | null
-  similarity: number
+  id: number;
+  canonicalName: string;
+  slug: string;
+  type: string;
+  aliases: string[] | null;
+  similarity: number;
 }
 
 /**
@@ -49,7 +49,7 @@ export async function findSimilarEntities(
   db: ReturnType<typeof useDB>,
   queryEmbedding: number[],
 ): Promise<EntityCandidate[]> {
-  const embeddingStr = `[${queryEmbedding.join(',')}]`
+  const embeddingStr = `[${queryEmbedding.join(",")}]`;
 
   const results = await db.execute(sql`
     SELECT
@@ -64,7 +64,7 @@ export async function findSimilarEntities(
       AND 1 - (embedding <=> ${embeddingStr}::vector) > ${LOW_SIMILARITY_THRESHOLD}
     ORDER BY similarity DESC
     LIMIT 5
-  `)
+  `);
 
   return (results.rows as any[]).map((row) => ({
     id: row.id,
@@ -73,15 +73,17 @@ export async function findSimilarEntities(
     type: row.type,
     aliases: row.aliases,
     similarity: Number(row.similarity),
-  }))
+  }));
 }
 
 // ── 7.3 — LLM Confirmation for Borderline Matches ──────
 
 const confirmMatchSchema = z.object({
-  isSameEntity: z.boolean().describe('Whether the mention refers to the same entity as the candidate'),
-  reason: z.string().describe('Brief explanation of the decision'),
-})
+  isSameEntity: z
+    .boolean()
+    .describe("Whether the mention refers to the same entity as the candidate"),
+  reason: z.string().describe("Brief explanation of the decision"),
+});
 
 /**
  * Use Gemini Flash to confirm whether a mention matches an existing entity
@@ -100,15 +102,15 @@ export async function confirmEntityMatch(
     prompt: `Do these refer to the same entity?
 
 Mention: "${mentionName}" (type: ${mentionType})
-Context snippets: ${contextSnippets.slice(0, 2).join(' | ')}
+Context snippets: ${contextSnippets.slice(0, 2).join(" | ")}
 
 Existing entity: "${candidate.canonicalName}" (type: ${candidate.type})
-Known aliases: ${candidate.aliases?.join(', ') || 'none'}
+Known aliases: ${candidate.aliases?.join(", ") || "none"}
 
 Answer whether they are the same entity.`,
-  })
+  });
 
-  return object.isSameEntity
+  return object.isSameEntity;
 }
 
 // ── 7.4 — Canonical Entity Creation ─────────────────────
@@ -116,10 +118,10 @@ Answer whether they are the same entity.`,
 function slugify(text: string): string {
   return text
     .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 /**
@@ -130,7 +132,7 @@ export async function createCanonicalEntity(
   raw: RawEntity,
   entityEmbedding: number[],
 ): Promise<number> {
-  const slug = slugify(raw.name)
+  const slug = slugify(raw.name);
 
   const [entity] = await db
     .insert(entities)
@@ -148,9 +150,9 @@ export async function createCanonicalEntity(
         mentionCount: sql`${entities.mentionCount} + ${raw.mentionCount}`,
       },
     })
-    .returning({ id: entities.id })
+    .returning({ id: entities.id });
 
-  return entity!.id
+  return entity!.id;
 }
 
 /**
@@ -165,11 +167,11 @@ export async function linkToExistingEntity(
     .select({ aliases: entities.aliases })
     .from(entities)
     .where(eq(entities.id, entityId))
-    .limit(1)
+    .limit(1);
 
-  const currentAliases = existing?.aliases ?? []
-  const nameNorm = raw.name.toLowerCase()
-  const hasAlias = currentAliases.some((a) => a.toLowerCase() === nameNorm)
+  const currentAliases = existing?.aliases ?? [];
+  const nameNorm = raw.name.toLowerCase();
+  const hasAlias = currentAliases.some((a) => a.toLowerCase() === nameNorm);
 
   await db
     .update(entities)
@@ -177,7 +179,7 @@ export async function linkToExistingEntity(
       mentionCount: sql`${entities.mentionCount} + ${raw.mentionCount}`,
       ...(hasAlias ? {} : { aliases: [...currentAliases, raw.name] }),
     })
-    .where(eq(entities.id, entityId))
+    .where(eq(entities.id, entityId));
 }
 
 // ── 7.5 — Resolve All Entities for an Episode ──────────
@@ -193,25 +195,29 @@ export async function resolveEntities(
 ): Promise<void> {
   for (const raw of rawEntities) {
     // 7.1 — Embed the entity mention
-    const entityEmbedding = await embedEntity(raw.name)
+    const entityEmbedding = await embedEntity(raw.name);
 
     // 7.2 — Search for similar existing entities
-    const candidates = await findSimilarEntities(db, entityEmbedding)
+    const candidates = await findSimilarEntities(db, entityEmbedding);
 
-    let resolvedEntityId: number
+    let resolvedEntityId: number;
 
     if (candidates.length === 0) {
       // No match — create new canonical entity (7.4)
-      resolvedEntityId = await createCanonicalEntity(db, raw, entityEmbedding)
-      console.log(`[EntityResolution] Created new entity: "${raw.name}" (${raw.type})`)
+      resolvedEntityId = await createCanonicalEntity(db, raw, entityEmbedding);
+      console.log(
+        `[EntityResolution] Created new entity: "${raw.name}" (${raw.type})`,
+      );
     } else {
-      const best = candidates[0]!
+      const best = candidates[0]!;
 
       if (best.similarity >= HIGH_SIMILARITY_THRESHOLD) {
         // High confidence match — link directly
-        resolvedEntityId = best.id
-        await linkToExistingEntity(db, resolvedEntityId, raw)
-        console.log(`[EntityResolution] Matched "${raw.name}" → "${best.canonicalName}" (${best.similarity.toFixed(3)})`)
+        resolvedEntityId = best.id;
+        await linkToExistingEntity(db, resolvedEntityId, raw);
+        console.log(
+          `[EntityResolution] Matched "${raw.name}" → "${best.canonicalName}" (${best.similarity.toFixed(3)})`,
+        );
       } else {
         // Borderline — use LLM confirmation (7.3)
         const isMatch = await confirmEntityMatch(
@@ -219,16 +225,24 @@ export async function resolveEntities(
           raw.type,
           raw.contextSnippets,
           best,
-        )
+        );
 
         if (isMatch) {
-          resolvedEntityId = best.id
-          await linkToExistingEntity(db, resolvedEntityId, raw)
-          console.log(`[EntityResolution] LLM confirmed "${raw.name}" → "${best.canonicalName}"`)
+          resolvedEntityId = best.id;
+          await linkToExistingEntity(db, resolvedEntityId, raw);
+          console.log(
+            `[EntityResolution] LLM confirmed "${raw.name}" → "${best.canonicalName}"`,
+          );
         } else {
           // LLM says different entity — create new
-          resolvedEntityId = await createCanonicalEntity(db, raw, entityEmbedding)
-          console.log(`[EntityResolution] LLM rejected match, created new: "${raw.name}"`)
+          resolvedEntityId = await createCanonicalEntity(
+            db,
+            raw,
+            entityEmbedding,
+          );
+          console.log(
+            `[EntityResolution] LLM rejected match, created new: "${raw.name}"`,
+          );
         }
       }
     }
@@ -247,6 +261,6 @@ export async function resolveEntities(
         set: {
           mentionCount: sql`${episodeEntities.mentionCount} + ${raw.mentionCount}`,
         },
-      })
+      });
   }
 }

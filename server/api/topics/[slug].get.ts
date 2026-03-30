@@ -1,4 +1,4 @@
-import { eq, desc } from 'drizzle-orm'
+import { eq, desc } from "drizzle-orm";
 import {
   topics,
   episodeTopics,
@@ -6,21 +6,21 @@ import {
   podcasts,
   episodeEntities,
   entities,
-} from '../../database/schema'
+} from "../../database/schema";
 
 export default defineEventHandler(async (event) => {
-  const slug = getRouterParam(event, 'slug')!
-  const db = useDB()
+  const slug = getRouterParam(event, "slug")!;
+  const db = useDB();
 
   // Get topic
   const [topic] = await db
     .select()
     .from(topics)
     .where(eq(topics.slug, slug))
-    .limit(1)
+    .limit(1);
 
   if (!topic) {
-    throw createError({ statusCode: 404, statusMessage: 'Topic not found' })
+    throw createError({ statusCode: 404, statusMessage: "Topic not found" });
   }
 
   // Get related episodes
@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
     .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
     .where(eq(episodeTopics.topicId, topic.id))
     .orderBy(desc(episodes.publishedAt))
-    .limit(50)
+    .limit(50);
 
   // Get related entities (entities that appear in episodes with this topic)
   const relatedEntities = await db
@@ -52,15 +52,24 @@ export default defineEventHandler(async (event) => {
     })
     .from(entities)
     .innerJoin(episodeEntities, eq(episodeEntities.entityId, entities.id))
-    .innerJoin(episodeTopics, eq(episodeTopics.episodeId, episodeEntities.episodeId))
+    .innerJoin(
+      episodeTopics,
+      eq(episodeTopics.episodeId, episodeEntities.episodeId),
+    )
     .where(eq(episodeTopics.topicId, topic.id))
-    .groupBy(entities.id, entities.canonicalName, entities.slug, entities.type, entities.mentionCount)
+    .groupBy(
+      entities.id,
+      entities.canonicalName,
+      entities.slug,
+      entities.type,
+      entities.mentionCount,
+    )
     .orderBy(desc(entities.mentionCount))
-    .limit(20)
+    .limit(20);
 
   return {
     topic,
     relatedEpisodes,
     relatedEntities,
-  }
-})
+  };
+});

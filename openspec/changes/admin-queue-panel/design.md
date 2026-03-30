@@ -7,12 +7,14 @@ The public frontend is a Nuxt 4 app with a default layout (header + search bar).
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Provide real-time visibility into queue health (counts by status)
 - Show individual job records with status, name, timestamps, and errors
 - Show registered schedules with their status and next run time
 - Protect admin routes with a simple token gate
 
 **Non-Goals:**
+
 - Full admin CRUD (no retry, cancel, or delete actions in this change)
 - Role-based access control or user accounts
 - WebSocket/SSE — polling is sufficient for a single-user admin tool

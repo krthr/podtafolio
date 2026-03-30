@@ -1,52 +1,52 @@
-import { Job } from '@boringnode/queue'
-import { eq, and, inArray } from 'drizzle-orm'
-import RSSParser from 'rss-parser'
-import { podcasts, episodes } from '../../database/schema'
-import DownloadAudioJob from './download-audio'
+import { Job } from "@boringnode/queue";
+import { eq, and, inArray } from "drizzle-orm";
+import RSSParser from "rss-parser";
+import { podcasts, episodes } from "../../database/schema";
+import DownloadAudioJob from "./download-audio";
 
-const parser = new RSSParser()
+const parser = new RSSParser();
 
 export interface FeedPollPayload {
   /** If set, poll only this podcast. Otherwise poll all. */
-  podcastId?: number
+  podcastId?: number;
 }
 
 function slugify(text: string): string {
   return text
     .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 export default class FeedPollJob extends Job<FeedPollPayload> {
   static options = {
-    queue: 'default',
-    timeout: '10m',
-  }
+    queue: "default",
+    timeout: "10m",
+  };
 
   async execute(): Promise<void> {
-    const db = useDB()
+    const db = useDB();
 
     // Get podcasts to poll
-    let podcastList
+    let podcastList;
     if (this.payload.podcastId) {
       podcastList = await db
         .select()
         .from(podcasts)
-        .where(eq(podcasts.id, this.payload.podcastId))
+        .where(eq(podcasts.id, this.payload.podcastId));
     } else {
-      podcastList = await db.select().from(podcasts)
+      podcastList = await db.select().from(podcasts);
     }
 
-    console.log(`[FeedPollJob] Polling ${podcastList.length} podcast(s)`)
+    console.log(`[FeedPollJob] Polling ${podcastList.length} podcast(s)`);
 
     for (const podcast of podcastList) {
       try {
-        await this.pollFeed(db, podcast)
+        await this.pollFeed(db, podcast);
       } catch (err) {
-        console.error(`[FeedPollJob] Error polling ${podcast.title}:`, err)
+        console.error(`[FeedPollJob] Error polling ${podcast.title}:`, err);
         // Continue to next podcast rather than failing the whole job
       }
     }
@@ -56,8 +56,8 @@ export default class FeedPollJob extends Job<FeedPollPayload> {
     db: ReturnType<typeof useDB>,
     podcast: typeof podcasts.$inferSelect,
   ): Promise<void> {
-    const feed = await parser.parseURL(podcast.feedUrl)
-    if (!feed.items || feed.items.length === 0) return
+    const feed = await parser.parseURL(podcast.feedUrl);
+    if (!feed.items || feed.items.length === 0) return;
 
     // Get existing episodes for this podcast
     const existingEpisodes = await db
@@ -69,33 +69,33 @@ export default class FeedPollJob extends Job<FeedPollPayload> {
         status: episodes.status,
       })
       .from(episodes)
-      .where(eq(episodes.podcastId, podcast.id))
+      .where(eq(episodes.podcastId, podcast.id));
 
-    const existingByGuid = new Map(existingEpisodes.map((e) => [e.guid, e]))
+    const existingByGuid = new Map(existingEpisodes.map((e) => [e.guid, e]));
 
-    let newCount = 0
-    let reprocessCount = 0
+    let newCount = 0;
+    let reprocessCount = 0;
 
     for (const item of feed.items) {
-      const guid = item.guid || item.link || item.title
-      if (!guid) continue
+      const guid = item.guid || item.link || item.title;
+      if (!guid) continue;
 
-      const enclosureUrl = item.enclosure?.url
-      if (!enclosureUrl) continue // Skip episodes without audio
+      const enclosureUrl = item.enclosure?.url;
+      if (!enclosureUrl) continue; // Skip episodes without audio
 
       const feedContentLength = item.enclosure?.length
         ? parseInt(String(item.enclosure.length), 10)
-        : null
+        : null;
 
-      const existing = existingByGuid.get(guid)
+      const existing = existingByGuid.get(guid);
 
       if (existing) {
         // Change detection: compare enclosure URL and Content-Length
-        const urlChanged = existing.enclosureUrl !== enclosureUrl
+        const urlChanged = existing.enclosureUrl !== enclosureUrl;
         const lengthChanged =
           feedContentLength !== null &&
           existing.contentLength !== null &&
-          existing.contentLength !== feedContentLength
+          existing.contentLength !== feedContentLength;
 
         if (urlChanged || lengthChanged) {
           // Update episode and re-enqueue for full reprocessing
@@ -104,23 +104,23 @@ export default class FeedPollJob extends Job<FeedPollPayload> {
             .set({
               enclosureUrl,
               contentLength: feedContentLength,
-              status: 'pending',
+              status: "pending",
             })
-            .where(eq(episodes.id, existing.id))
+            .where(eq(episodes.id, existing.id));
 
           await DownloadAudioJob.dispatch({
             episodeId: existing.id,
             enclosureUrl,
-          })
+          });
 
-          reprocessCount++
+          reprocessCount++;
         }
-        continue
+        continue;
       }
 
       // New episode
-      const title = item.title || 'Untitled Episode'
-      const slug = `${slugify(title)}-${Date.now().toString(36)}`
+      const title = item.title || "Untitled Episode";
+      const slug = `${slugify(title)}-${Date.now().toString(36)}`;
 
       const [episode] = await db
         .insert(episodes)
@@ -132,20 +132,22 @@ export default class FeedPollJob extends Job<FeedPollPayload> {
           enclosureUrl,
           contentLength: feedContentLength,
           publishedAt: item.pubDate ? new Date(item.pubDate) : null,
-          status: 'pending',
+          status: "pending",
         })
-        .returning()
+        .returning();
 
       await DownloadAudioJob.dispatch({
         episodeId: episode.id,
         enclosureUrl,
-      })
+      });
 
-      newCount++
+      newCount++;
     }
 
     if (newCount > 0 || reprocessCount > 0) {
-      console.log(`[FeedPollJob] ${podcast.title}: ${newCount} new, ${reprocessCount} reprocessed`)
+      console.log(
+        `[FeedPollJob] ${podcast.title}: ${newCount} new, ${reprocessCount} reprocessed`,
+      );
     }
   }
 }

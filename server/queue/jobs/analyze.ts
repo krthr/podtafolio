@@ -1,5 +1,5 @@
-import { Job } from '@boringnode/queue'
-import { eq, sql } from 'drizzle-orm'
+import { Job } from "@boringnode/queue";
+import { eq, sql } from "drizzle-orm";
 import {
   episodes,
   transcripts,
@@ -7,56 +7,56 @@ import {
   episodeTopics,
   episodeEntities,
   episodeSummaries,
-} from '../../database/schema'
-import { analyzeTranscript } from '../../services/analysis'
-import ResolveEntitiesJob from './resolve-entities'
+} from "../../database/schema";
+import { analyzeTranscript } from "../../services/analysis";
+import ResolveEntitiesJob from "./resolve-entities";
 
 export interface AnalyzePayload {
-  episodeId: number
+  episodeId: number;
 }
 
 function slugify(text: string): string {
   return text
     .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 export default class AnalyzeJob extends Job<AnalyzePayload> {
   static options = {
-    queue: 'default',
-    timeout: '10m',
-  }
+    queue: "default",
+    timeout: "10m",
+  };
 
   async execute(): Promise<void> {
-    const db = useDB()
-    const { episodeId } = this.payload
+    const db = useDB();
+    const { episodeId } = this.payload;
 
     // Get raw transcript
     const [transcript] = await db
       .select({ id: transcripts.id, rawText: transcripts.rawText })
       .from(transcripts)
       .where(eq(transcripts.episodeId, episodeId))
-      .limit(1)
+      .limit(1);
 
     if (!transcript?.rawText) {
-      throw new Error(`Episode ${episodeId}: no raw transcript found`)
+      throw new Error(`Episode ${episodeId}: no raw transcript found`);
     }
 
     // Run combined analysis via Gemini Flash
-    const result = await analyzeTranscript(transcript.rawText)
+    const result = await analyzeTranscript(transcript.rawText);
 
     // 6.3 — Store clean_text
     await db
       .update(transcripts)
       .set({ cleanText: result.cleanText })
-      .where(eq(transcripts.id, transcript.id))
+      .where(eq(transcripts.id, transcript.id));
 
     // 6.4 — Create/link topics
     for (const topicData of result.topics) {
-      const topicSlug = slugify(topicData.name)
+      const topicSlug = slugify(topicData.name);
 
       // Upsert topic: insert or get existing by slug
       const [topic] = await db
@@ -70,7 +70,7 @@ export default class AnalyzeJob extends Job<AnalyzePayload> {
           target: topics.slug,
           set: { episodeCount: sql`${topics.episodeCount} + 1` },
         })
-        .returning({ id: topics.id })
+        .returning({ id: topics.id });
 
       // Link episode to topic
       await db
@@ -80,7 +80,7 @@ export default class AnalyzeJob extends Job<AnalyzePayload> {
           topicId: topic.id,
           relevanceScore: topicData.relevanceScore,
         })
-        .onConflictDoNothing()
+        .onConflictDoNothing();
     }
 
     // 6.5 — Store raw entity mentions (temporary storage for entity resolution)
@@ -94,7 +94,7 @@ export default class AnalyzeJob extends Job<AnalyzePayload> {
       .select({ id: episodeSummaries.id })
       .from(episodeSummaries)
       .where(eq(episodeSummaries.episodeId, episodeId))
-      .limit(1)
+      .limit(1);
 
     if (existingSummary.length > 0) {
       await db
@@ -103,35 +103,38 @@ export default class AnalyzeJob extends Job<AnalyzePayload> {
           summaryText: result.summary.text,
           keyPoints: result.summary.keyPoints,
         })
-        .where(eq(episodeSummaries.episodeId, episodeId))
+        .where(eq(episodeSummaries.episodeId, episodeId));
     } else {
       await db.insert(episodeSummaries).values({
         episodeId,
         summaryText: result.summary.text,
         keyPoints: result.summary.keyPoints,
-      })
+      });
     }
 
     console.log(
       `[AnalyzeJob] Episode ${episodeId}: ${result.topics.length} topics, ` +
         `${result.entities.length} entities, ` +
         `${result.adSegments.length} ads stripped`,
-    )
+    );
 
     // Chain: analyze → resolve-entities (pass extracted entities in payload)
     await ResolveEntitiesJob.dispatch({
       episodeId,
       rawEntities: result.entities,
-    })
+    });
   }
 
   async failed(error: Error): Promise<void> {
-    const db = useDB()
+    const db = useDB();
     await db
       .update(episodes)
-      .set({ status: 'failed' })
-      .where(eq(episodes.id, this.payload.episodeId))
+      .set({ status: "failed" })
+      .where(eq(episodes.id, this.payload.episodeId));
 
-    console.error(`[AnalyzeJob] Episode ${this.payload.episodeId} failed:`, error.message)
+    console.error(
+      `[AnalyzeJob] Episode ${this.payload.episodeId} failed:`,
+      error.message,
+    );
   }
 }

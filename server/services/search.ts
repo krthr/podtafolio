@@ -1,51 +1,51 @@
-import { embed, embedMany, streamText } from 'ai'
-import { google } from '@ai-sdk/google'
-import { sql } from 'drizzle-orm'
-import { answerCache } from '../database/schema'
+import { embed, embedMany, streamText } from "ai";
+import { google } from "@ai-sdk/google";
+import { sql } from "drizzle-orm";
+import { answerCache } from "../database/schema";
 
 // ── Config ───────────────────────────────────────────────
 
-const EMBEDDING_MODEL = google.textEmbeddingModel('gemini-embedding-2-preview')
-const EMBEDDING_PROVIDER_OPTIONS = { google: { outputDimensionality: 768 } }
-const SYNTHESIS_MODEL = google('gemini-2.5-pro-preview-06-05')
+const EMBEDDING_MODEL = google.textEmbeddingModel("gemini-embedding-2-preview");
+const EMBEDDING_PROVIDER_OPTIONS = { google: { outputDimensionality: 768 } };
+const SYNTHESIS_MODEL = google("gemini-2.5-pro-preview-06-05");
 
-const CHUNK_SIZE = 1000 // characters
-const CHUNK_OVERLAP = 200 // characters
-const SEARCH_TOP_K = 10
-const SEARCH_MIN_SIMILARITY = 0.50
-const CACHE_SIMILARITY_THRESHOLD = 0.92
-const CACHE_TTL_HOURS = 24
+const CHUNK_SIZE = 1000; // characters
+const CHUNK_OVERLAP = 200; // characters
+const SEARCH_TOP_K = 10;
+const SEARCH_MIN_SIMILARITY = 0.5;
+const CACHE_SIMILARITY_THRESHOLD = 0.92;
+const CACHE_TTL_HOURS = 24;
 
 // ── 8.1 — Transcript Chunking ───────────────────────────
 
 export interface TextChunk {
-  text: string
-  chunkIndex: number
-  startOffset: number
-  endOffset: number
+  text: string;
+  chunkIndex: number;
+  startOffset: number;
+  endOffset: number;
 }
 
 /**
  * Split text into overlapping chunks with positional offsets.
  */
 export function chunkTranscript(text: string): TextChunk[] {
-  const chunks: TextChunk[] = []
-  let start = 0
-  let index = 0
+  const chunks: TextChunk[] = [];
+  let start = 0;
+  let index = 0;
 
   while (start < text.length) {
-    const end = Math.min(start + CHUNK_SIZE, text.length)
+    const end = Math.min(start + CHUNK_SIZE, text.length);
     chunks.push({
       text: text.slice(start, end),
       chunkIndex: index,
       startOffset: start,
       endOffset: end,
-    })
-    index++
-    start += CHUNK_SIZE - CHUNK_OVERLAP
+    });
+    index++;
+    start += CHUNK_SIZE - CHUNK_OVERLAP;
   }
 
-  return chunks
+  return chunks;
 }
 
 // ── 8.2 — Chunk Embedding ────────────────────────────────
@@ -55,20 +55,20 @@ export function chunkTranscript(text: string): TextChunk[] {
  * Batches in groups of 100 to stay within API limits.
  */
 export async function embedChunks(texts: string[]): Promise<number[][]> {
-  const BATCH_SIZE = 100
-  const allEmbeddings: number[][] = []
+  const BATCH_SIZE = 100;
+  const allEmbeddings: number[][] = [];
 
   for (let i = 0; i < texts.length; i += BATCH_SIZE) {
-    const batch = texts.slice(i, i + BATCH_SIZE)
+    const batch = texts.slice(i, i + BATCH_SIZE);
     const { embeddings } = await embedMany({
       model: EMBEDDING_MODEL,
       values: batch,
       providerOptions: EMBEDDING_PROVIDER_OPTIONS,
-    })
-    allEmbeddings.push(...embeddings)
+    });
+    allEmbeddings.push(...embeddings);
   }
 
-  return allEmbeddings
+  return allEmbeddings;
 }
 
 /**
@@ -79,22 +79,22 @@ export async function embedQuery(query: string): Promise<number[]> {
     model: EMBEDDING_MODEL,
     value: query,
     providerOptions: EMBEDDING_PROVIDER_OPTIONS,
-  })
-  return embedding
+  });
+  return embedding;
 }
 
 // ── 8.4 — Semantic Search ────────────────────────────────
 
 export interface SearchResult {
-  chunkId: number
-  text: string
-  similarity: number
-  episodeId: number
-  episodeTitle: string
-  episodeSlug: string
-  podcastTitle: string
-  podcastSlug: string
-  publishedAt: string | null
+  chunkId: number;
+  text: string;
+  similarity: number;
+  episodeId: number;
+  episodeTitle: string;
+  episodeSlug: string;
+  podcastTitle: string;
+  podcastSlug: string;
+  publishedAt: string | null;
 }
 
 /**
@@ -105,7 +105,7 @@ export async function searchChunks(
   db: ReturnType<typeof useDB>,
   queryEmbedding: number[],
 ): Promise<SearchResult[]> {
-  const embeddingStr = `[${queryEmbedding.join(',')}]`
+  const embeddingStr = `[${queryEmbedding.join(",")}]`;
 
   const results = await db.execute(sql`
     SELECT
@@ -125,7 +125,7 @@ export async function searchChunks(
       AND 1 - (tc.embedding <=> ${embeddingStr}::vector) > ${SEARCH_MIN_SIMILARITY}
     ORDER BY similarity DESC
     LIMIT ${SEARCH_TOP_K}
-  `)
+  `);
 
   return (results.rows as any[]).map((row) => ({
     chunkId: row.chunk_id,
@@ -137,7 +137,7 @@ export async function searchChunks(
     podcastTitle: row.podcast_title,
     podcastSlug: row.podcast_slug,
     publishedAt: row.published_at,
-  }))
+  }));
 }
 
 // ── 8.5 — Answer Synthesis ───────────────────────────────
@@ -150,38 +150,35 @@ Rules:
 - Write your answer in Spanish
 - Cite source episodes using [Episode Title - Podcast Name] format
 - If the context doesn't contain enough information, say so honestly
-- Be concise but thorough`
+- Be concise but thorough`;
 
 /**
  * Synthesize an answer from search results using Gemini Pro via streamText.
  * Returns a ReadableStream for streaming response to the client.
  */
-export function synthesizeAnswer(
-  query: string,
-  searchResults: SearchResult[],
-) {
+export function synthesizeAnswer(query: string, searchResults: SearchResult[]) {
   const contextBlock = searchResults
     .map(
       (r, i) =>
         `[Source ${i + 1}: "${r.episodeTitle}" - ${r.podcastTitle}]\n${r.text}`,
     )
-    .join('\n\n---\n\n')
+    .join("\n\n---\n\n");
 
   return streamText({
     model: SYNTHESIS_MODEL,
     system: SYNTHESIS_PROMPT,
     prompt: `Context from podcast transcripts:\n\n${contextBlock}\n\n---\n\nUser question: ${query}`,
-  })
+  });
 }
 
 // ── 8.6 — Semantic Answer Cache ──────────────────────────
 
 export interface CachedAnswer {
-  id: number
-  queryText: string
-  answerText: string
-  sourceEpisodeIds: number[]
-  topicIds: number[]
+  id: number;
+  queryText: string;
+  answerText: string;
+  sourceEpisodeIds: number[];
+  topicIds: number[];
 }
 
 /**
@@ -192,7 +189,7 @@ export async function findCachedAnswer(
   db: ReturnType<typeof useDB>,
   queryEmbedding: number[],
 ): Promise<CachedAnswer | null> {
-  const embeddingStr = `[${queryEmbedding.join(',')}]`
+  const embeddingStr = `[${queryEmbedding.join(",")}]`;
 
   const results = await db.execute(sql`
     SELECT
@@ -208,10 +205,10 @@ export async function findCachedAnswer(
       AND expires_at > NOW()
     ORDER BY similarity DESC
     LIMIT 1
-  `)
+  `);
 
-  const row = (results.rows as any[])[0]
-  if (!row) return null
+  const row = (results.rows as any[])[0];
+  if (!row) return null;
 
   return {
     id: row.id,
@@ -219,7 +216,7 @@ export async function findCachedAnswer(
     answerText: row.answer_text,
     sourceEpisodeIds: row.source_episode_ids ?? [],
     topicIds: row.topic_ids ?? [],
-  }
+  };
 }
 
 /**
@@ -240,7 +237,7 @@ export async function cacheAnswer(
     sourceEpisodeIds,
     topicIds,
     expiresAt: new Date(Date.now() + CACHE_TTL_HOURS * 60 * 60 * 1000),
-  })
+  });
 }
 
 // ── 8.7 — Topic-Aware Cache Invalidation ─────────────────
@@ -252,14 +249,17 @@ export async function invalidateCacheByTopics(
   db: ReturnType<typeof useDB>,
   topicIds: number[],
 ): Promise<number> {
-  if (topicIds.length === 0) return 0
+  if (topicIds.length === 0) return 0;
 
   const result = await db.execute(sql`
     DELETE FROM answer_cache
-    WHERE topic_ids && ${sql`ARRAY[${sql.join(topicIds.map((id) => sql`${id}`), sql`,`)}]::int[]`}
-  `)
+    WHERE topic_ids && ${sql`ARRAY[${sql.join(
+      topicIds.map((id) => sql`${id}`),
+      sql`,`,
+    )}]::int[]`}
+  `);
 
-  return (result as any).rowCount ?? 0
+  return (result as any).rowCount ?? 0;
 }
 
 /**
@@ -271,7 +271,7 @@ export async function purgeExpiredCache(
   const result = await db.execute(sql`
     DELETE FROM answer_cache
     WHERE expires_at <= NOW()
-  `)
+  `);
 
-  return (result as any).rowCount ?? 0
+  return (result as any).rowCount ?? 0;
 }

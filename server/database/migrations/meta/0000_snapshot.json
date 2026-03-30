@@ -127,9 +127,7 @@
         "entities_slug_unique": {
           "name": "entities_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -172,12 +170,8 @@
           "name": "episode_entities_episode_id_episodes_id_fk",
           "tableFrom": "episode_entities",
           "tableTo": "episodes",
-          "columnsFrom": [
-            "episode_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["episode_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -185,12 +179,8 @@
           "name": "episode_entities_entity_id_entities_id_fk",
           "tableFrom": "episode_entities",
           "tableTo": "entities",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["entity_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -198,10 +188,7 @@
       "compositePrimaryKeys": {
         "episode_entities_episode_id_entity_id_pk": {
           "name": "episode_entities_episode_id_entity_id_pk",
-          "columns": [
-            "episode_id",
-            "entity_id"
-          ]
+          "columns": ["episode_id", "entity_id"]
         }
       },
       "uniqueConstraints": {},
@@ -260,12 +247,8 @@
           "name": "episode_summaries_episode_id_episodes_id_fk",
           "tableFrom": "episode_summaries",
           "tableTo": "episodes",
-          "columnsFrom": [
-            "episode_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["episode_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -275,9 +258,7 @@
         "episode_summaries_episode_id_unique": {
           "name": "episode_summaries_episode_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "episode_id"
-          ]
+          "columns": ["episode_id"]
         }
       },
       "policies": {},
@@ -313,12 +294,8 @@
           "name": "episode_topics_episode_id_episodes_id_fk",
           "tableFrom": "episode_topics",
           "tableTo": "episodes",
-          "columnsFrom": [
-            "episode_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["episode_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -326,12 +303,8 @@
           "name": "episode_topics_topic_id_topics_id_fk",
           "tableFrom": "episode_topics",
           "tableTo": "topics",
-          "columnsFrom": [
-            "topic_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["topic_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -339,10 +312,7 @@
       "compositePrimaryKeys": {
         "episode_topics_episode_id_topic_id_pk": {
           "name": "episode_topics_episode_id_topic_id_pk",
-          "columns": [
-            "episode_id",
-            "topic_id"
-          ]
+          "columns": ["episode_id", "topic_id"]
         }
       },
       "uniqueConstraints": {},
@@ -493,12 +463,8 @@
           "name": "episodes_podcast_id_podcasts_id_fk",
           "tableFrom": "episodes",
           "tableTo": "podcasts",
-          "columnsFrom": [
-            "podcast_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["podcast_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -599,16 +565,12 @@
         "podcasts_slug_unique": {
           "name": "podcasts_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         },
         "podcasts_feed_url_unique": {
           "name": "podcasts_feed_url_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "feed_url"
-          ]
+          "columns": ["feed_url"]
         }
       },
       "policies": {},
@@ -664,9 +626,7 @@
         "topics_slug_unique": {
           "name": "topics_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -763,12 +723,8 @@
           "name": "transcript_chunks_transcript_id_transcripts_id_fk",
           "tableFrom": "transcript_chunks",
           "tableTo": "transcripts",
-          "columnsFrom": [
-            "transcript_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["transcript_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -776,12 +732,8 @@
           "name": "transcript_chunks_episode_id_episodes_id_fk",
           "tableFrom": "transcript_chunks",
           "tableTo": "episodes",
-          "columnsFrom": [
-            "episode_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["episode_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -834,12 +786,8 @@
           "name": "transcripts_episode_id_episodes_id_fk",
           "tableFrom": "transcripts",
           "tableTo": "episodes",
-          "columnsFrom": [
-            "episode_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["episode_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -849,9 +797,7 @@
         "transcripts_episode_id_unique": {
           "name": "transcripts_episode_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "episode_id"
-          ]
+          "columns": ["episode_id"]
         }
       },
       "policies": {},

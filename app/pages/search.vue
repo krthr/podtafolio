@@ -2,7 +2,9 @@
   <div>
     <h1 class="page-title">Resultados de busqueda</h1>
 
-    <div v-if="pending" class="loading">Buscando y sintetizando respuesta...</div>
+    <div v-if="pending" class="loading">
+      Buscando y sintetizando respuesta...
+    </div>
 
     <template v-else-if="data">
       <!-- AI Answer -->
@@ -13,54 +15,64 @@
 
       <!-- No results -->
       <div v-else class="no-results">
-        <p>{{ data.message || 'No se encontro contenido relevante.' }}</p>
-        <p>Intenta explorar los <NuxtLink to="/">temas en tendencia</NuxtLink>.</p>
+        <p>{{ data.message || "No se encontro contenido relevante." }}</p>
+        <p>
+          Intenta explorar los <NuxtLink to="/">temas en tendencia</NuxtLink>.
+        </p>
       </div>
 
       <!-- Source Episodes -->
       <section v-if="data.sources && data.sources.length > 0" class="section">
         <h2 class="section-title">Fuentes</h2>
         <div class="sources-list">
-          <article v-for="source in data.sources" :key="source.episodeId" class="source-card">
-            <NuxtLink :to="`/podcast/${source.podcastSlug}`" class="source-podcast">
+          <article
+            v-for="source in data.sources"
+            :key="source.episodeId"
+            class="source-card"
+          >
+            <NuxtLink
+              :to="`/podcast/${source.podcastSlug}`"
+              class="source-podcast"
+            >
               {{ source.podcastTitle }}
             </NuxtLink>
-            <NuxtLink :to="`/episode/${source.episodeSlug}`" class="source-episode">
+            <NuxtLink
+              :to="`/episode/${source.episodeSlug}`"
+              class="source-episode"
+            >
               {{ source.episodeTitle }}
             </NuxtLink>
             <span v-if="source.publishedAt" class="source-date">
-              {{ new Date(source.publishedAt).toLocaleDateString('es-CO') }}
+              {{ new Date(source.publishedAt).toLocaleDateString("es-CO") }}
             </span>
           </article>
         </div>
       </section>
     </template>
 
-    <div v-if="error" class="error">
-      Error al buscar: {{ error.message }}
-    </div>
+    <div v-if="error" class="error">Error al buscar: {{ error.message }}</div>
   </div>
 </template>
 
 <script setup lang="ts">
-const route = useRoute()
-const q = computed(() => (route.query.q as string) || '')
+const route = useRoute();
+const q = computed(() => (route.query.q as string) || "");
 
-const { data, pending, error } = await useFetch('/api/search', {
-  method: 'POST',
+const { data, pending, error } = await useFetch("/api/search", {
+  method: "POST",
   body: computed(() => ({ query: q.value })),
   watch: [q],
   immediate: !!q.value,
-})
+});
 
 function renderMarkdown(text: string): string {
   return text
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/\n/g, '<br>')
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\[(.*?)\]/g, '<em>[$1]</em>')
-    .replace(/^/, '<p>')
-    .replace(/$/, '</p>')
+    .replace(/\n\n/g, "</p><p>")
+    .replace(/\n/g, "<br>")
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\[(.*?)\]/g, "<em>[$1]</em>")
+    .replace(/^/, "<p>")
+    .replace(/$/, "</p>");
 }
 </script>
 

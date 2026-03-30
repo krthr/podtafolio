@@ -16,6 +16,7 @@ There is no visibility into the background job queue. When jobs fail or stall, t
 ## Capabilities
 
 ### New Capabilities
+
 - `admin-auth`: Token-based authentication for admin API routes via server middleware
 - `queue-dashboard`: Admin page and API endpoint for viewing queue job status, schedules, and job history
 

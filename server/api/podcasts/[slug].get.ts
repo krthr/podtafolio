@@ -1,23 +1,19 @@
-import { eq, desc } from 'drizzle-orm'
-import {
-  podcasts,
-  episodes,
-  episodeSummaries,
-} from '../../database/schema'
+import { eq, desc } from "drizzle-orm";
+import { podcasts, episodes, episodeSummaries } from "../../database/schema";
 
 export default defineEventHandler(async (event) => {
-  const slug = getRouterParam(event, 'slug')!
-  const db = useDB()
+  const slug = getRouterParam(event, "slug")!;
+  const db = useDB();
 
   // Get podcast
   const [podcast] = await db
     .select()
     .from(podcasts)
     .where(eq(podcasts.slug, slug))
-    .limit(1)
+    .limit(1);
 
   if (!podcast) {
-    throw createError({ statusCode: 404, statusMessage: 'Podcast not found' })
+    throw createError({ statusCode: 404, statusMessage: "Podcast not found" });
   }
 
   // Get episodes with summaries
@@ -35,10 +31,10 @@ export default defineEventHandler(async (event) => {
     .leftJoin(episodeSummaries, eq(episodeSummaries.episodeId, episodes.id))
     .where(eq(episodes.podcastId, podcast.id))
     .orderBy(desc(episodes.publishedAt))
-    .limit(100)
+    .limit(100);
 
   return {
     podcast,
     episodes: episodeList,
-  }
-})
+  };
+});

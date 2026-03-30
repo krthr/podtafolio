@@ -3,16 +3,16 @@
  *
  * Usage: npx tsx scripts/test-analysis.ts
  */
-import 'dotenv/config'
-import { drizzle } from 'drizzle-orm/node-postgres'
-import { eq } from 'drizzle-orm'
-import { createGoogleGenerativeAI } from '@ai-sdk/google'
-import { generateObject } from 'ai'
-import * as schema from '../server/database/schema'
+import "dotenv/config";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { eq } from "drizzle-orm";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { generateObject } from "ai";
+import * as schema from "../server/database/schema";
 
 // We can't import the server service directly (uses Nuxt auto-imports),
 // so we inline the schema and call here.
-import { z } from 'zod'
+import { z } from "zod";
 
 const analysisSchema = z.object({
   adSegments: z.array(
@@ -31,7 +31,7 @@ const analysisSchema = z.object({
   entities: z.array(
     z.object({
       name: z.string(),
-      type: z.enum(['person', 'org', 'place', 'event', 'other']),
+      type: z.enum(["person", "org", "place", "event", "other"]),
       mentionCount: z.number(),
       contextSnippets: z.array(z.string()).max(3),
     }),
@@ -40,7 +40,7 @@ const analysisSchema = z.object({
     text: z.string(),
     keyPoints: z.array(z.string()),
   }),
-})
+});
 
 const SAMPLE_TRANSCRIPT = `
 Bienvenidos a nuestro podcast sobre la actualidad colombiana. Hoy vamos a hablar sobre la reforma pensional que se está discutiendo en el Congreso.
@@ -62,23 +62,25 @@ Volviendo al tema, el impacto de esta reforma se sentiría especialmente en ciud
 En resumen, la reforma pensional es uno de los temas más importantes de la agenda legislativa de 2024 y su resultado definirá el futuro del sistema de protección social en Colombia.
 
 Gracias por escucharnos. No olviden suscribirse y dejarnos sus comentarios.
-`
+`;
 
 async function main() {
-  const databaseUrl = process.env.NUXT_DATABASE_URL
-  const geminiKey = process.env.NUXT_GOOGLE_GENERATIVE_AI_API_KEY
+  const databaseUrl = process.env.NUXT_DATABASE_URL;
+  const geminiKey = process.env.NUXT_GOOGLE_GENERATIVE_AI_API_KEY;
   if (!databaseUrl || !geminiKey) {
-    console.error('NUXT_DATABASE_URL and NUXT_GOOGLE_GENERATIVE_AI_API_KEY required in .env')
-    process.exit(1)
+    console.error(
+      "NUXT_DATABASE_URL and NUXT_GOOGLE_GENERATIVE_AI_API_KEY required in .env",
+    );
+    process.exit(1);
   }
 
-  const db = drizzle(databaseUrl, { schema })
+  const db = drizzle(databaseUrl, { schema });
 
   // Get first podcast to attach our test episode
-  const [podcast] = await db.select().from(schema.podcasts).limit(1)
+  const [podcast] = await db.select().from(schema.podcasts).limit(1);
   if (!podcast) {
-    console.error('No podcasts found. Run seed first.')
-    process.exit(1)
+    console.error("No podcasts found. Run seed first.");
+    process.exit(1);
   }
 
   // Create a test episode
@@ -86,25 +88,25 @@ async function main() {
     .insert(schema.episodes)
     .values({
       podcastId: podcast.id,
-      title: 'Test: Reforma Pensional',
+      title: "Test: Reforma Pensional",
       slug: `test-reforma-pensional-${Date.now().toString(36)}`,
       guid: `test-${Date.now()}`,
-      status: 'processing',
+      status: "processing",
     })
-    .returning()
+    .returning();
 
   // Insert raw transcript
   await db.insert(schema.transcripts).values({
     episodeId: episode.id,
     rawText: SAMPLE_TRANSCRIPT.trim(),
-  })
+  });
 
-  console.log(`Created test episode #${episode.id}. Running analysis...`)
+  console.log(`Created test episode #${episode.id}. Running analysis...`);
 
   // Run analysis
-  const google = createGoogleGenerativeAI({ apiKey: geminiKey })
+  const google = createGoogleGenerativeAI({ apiKey: geminiKey });
   const { object } = await generateObject({
-    model: google('gemini-2.0-flash'),
+    model: google("gemini-2.0-flash"),
     schema: analysisSchema,
     system: `You are an expert podcast content analyst specializing in Colombian Spanish media.
 
@@ -115,40 +117,42 @@ Analyze the following podcast transcript and return a structured analysis with:
 4. Entities: Extract named entities (people, orgs, places, events) with type, mention count, and context snippets.
 5. Summary: 2-3 paragraph summary in Spanish + key takeaways list.`,
     prompt: SAMPLE_TRANSCRIPT.trim(),
-  })
+  });
 
-  console.log('\n=== RESULTS ===\n')
+  console.log("\n=== RESULTS ===\n");
 
-  console.log(`Ad segments found: ${object.adSegments.length}`)
+  console.log(`Ad segments found: ${object.adSegments.length}`);
   for (const ad of object.adSegments) {
-    console.log(`  - "${ad.text.slice(0, 80)}..." (${ad.reason})`)
+    console.log(`  - "${ad.text.slice(0, 80)}..." (${ad.reason})`);
   }
 
-  console.log(`\nTopics: ${object.topics.length}`)
+  console.log(`\nTopics: ${object.topics.length}`);
   for (const t of object.topics) {
-    console.log(`  - ${t.name} (relevance: ${t.relevanceScore})`)
+    console.log(`  - ${t.name} (relevance: ${t.relevanceScore})`);
   }
 
-  console.log(`\nEntities: ${object.entities.length}`)
+  console.log(`\nEntities: ${object.entities.length}`);
   for (const e of object.entities) {
-    console.log(`  - ${e.name} [${e.type}] (${e.mentionCount} mentions)`)
+    console.log(`  - ${e.name} [${e.type}] (${e.mentionCount} mentions)`);
   }
 
-  console.log(`\nSummary:\n${object.summary.text}`)
-  console.log(`\nKey Points:`)
+  console.log(`\nSummary:\n${object.summary.text}`);
+  console.log(`\nKey Points:`);
   for (const kp of object.summary.keyPoints) {
-    console.log(`  • ${kp}`)
+    console.log(`  • ${kp}`);
   }
 
   // Clean up test data
-  await db.delete(schema.transcripts).where(eq(schema.transcripts.episodeId, episode.id))
-  await db.delete(schema.episodes).where(eq(schema.episodes.id, episode.id))
-  console.log('\nTest data cleaned up.')
+  await db
+    .delete(schema.transcripts)
+    .where(eq(schema.transcripts.episodeId, episode.id));
+  await db.delete(schema.episodes).where(eq(schema.episodes.id, episode.id));
+  console.log("\nTest data cleaned up.");
 
-  process.exit(0)
+  process.exit(0);
 }
 
 main().catch((err) => {
-  console.error('Test failed:', err)
-  process.exit(1)
-})
+  console.error("Test failed:", err);
+  process.exit(1);
+});

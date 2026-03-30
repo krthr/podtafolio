@@ -1,13 +1,13 @@
-import { sql, desc, eq } from 'drizzle-orm'
+import { sql, desc, eq } from "drizzle-orm";
 import {
   topics,
   episodes,
   podcasts,
   episodeSummaries,
-} from '../database/schema'
+} from "../database/schema";
 
 export default defineEventHandler(async () => {
-  const db = useDB()
+  const db = useDB();
 
   // Trending topics: by episode count, considering recent activity
   const trendingTopics = await db
@@ -19,7 +19,7 @@ export default defineEventHandler(async () => {
     })
     .from(topics)
     .orderBy(desc(topics.episodeCount))
-    .limit(12)
+    .limit(12);
 
   // Recent episodes with podcast info and summary
   const recentEpisodes = await db
@@ -36,12 +36,12 @@ export default defineEventHandler(async () => {
     .from(episodes)
     .innerJoin(podcasts, eq(episodes.podcastId, podcasts.id))
     .leftJoin(episodeSummaries, eq(episodeSummaries.episodeId, episodes.id))
-    .where(eq(episodes.status, 'done'))
+    .where(eq(episodes.status, "done"))
     .orderBy(desc(episodes.publishedAt))
-    .limit(20)
+    .limit(20);
 
   return {
     trendingTopics,
     recentEpisodes,
-  }
-})
+  };
+});

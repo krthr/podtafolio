@@ -7,12 +7,14 @@ The existing codebase is a bare Nuxt 4 scaffold with no application code yet.
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Build an end-to-end pipeline from podcast discovery through transcription, analysis, and searchable storage
 - Deliver a Perplexity-like search experience over Colombian podcast content
 - Provide structured browsing via topic, entity, podcast, and episode pages
 - Keep infrastructure manageable for a single-developer project at launch scale (~20 podcasts, ~60 episodes/week)
 
 **Non-Goals:**
+
 - User accounts, authentication, or personalization
 - Real-time feed updates or websocket-based notifications
 - Auto-discovery of new podcasts (curated + manual seeding only for MVP)
@@ -30,6 +32,7 @@ The existing codebase is a bare Nuxt 4 scaffold with no application code yet.
 **Why**: SSR gives good SEO for topic/entity/episode pages (critical for organic discovery), fast initial loads, and server routes for API endpoints. Nuxt's server directory provides a natural place for the API layer without a separate backend.
 
 **Alternatives considered**:
+
 - SPA (Nuxt generate): Poor SEO, requires separate API server
 - Separate backend (Fastify/Express) + Nuxt frontend: More infrastructure to manage for a single-developer project
 
@@ -40,6 +43,7 @@ The existing codebase is a bare Nuxt 4 scaffold with no application code yet.
 **Why**: Single database for all data — podcasts, episodes, transcripts, entities, topics, embeddings, and the answer cache. pgvector handles cosine similarity search for both entity deduplication and semantic search. Avoids running a separate vector database.
 
 **Alternatives considered**:
+
 - SQLite + a vector DB (Qdrant, Pinecone): Adds operational complexity with a separate service
 - Supabase: Would work (has pgvector), but adds vendor coupling for what can run on a single Postgres instance
 
@@ -50,6 +54,7 @@ The existing codebase is a bare Nuxt 4 scaffold with no application code yet.
 **Why**: Lightweight, no Redis dependency, runs in-process. The pipeline is sequential per episode (download → preprocess → transcribe → analyze → embed) and the volume (~60 jobs/week) doesn't require a distributed queue. SQLite is sufficient and keeps the deployment simple.
 
 **Alternatives considered**:
+
 - BullMQ (Redis): Overkill for this volume, adds Redis dependency
 - Simple cron + sequential processing: No retry logic, no job visibility, harder to debug failures
 
@@ -60,6 +65,7 @@ The existing codebase is a bare Nuxt 4 scaffold with no application code yet.
 **Why**: Fast (~10x realtime), affordable, good Spanish language support. The 25MB direct upload limit is manageable with ffmpeg preprocessing (mono/16kHz/opus reduces most episodes to under 25MB). For larger files, Groq accepts an external URL.
 
 **Alternatives considered**:
+
 - Self-hosted Whisper (faster-whisper): Free but requires GPU infrastructure
 - OpenAI Whisper API: Slower, similar pricing
 - Deepgram: Good quality but higher cost for Spanish
@@ -71,6 +77,7 @@ The existing codebase is a bare Nuxt 4 scaffold with no application code yet.
 **Why**: The Vercel AI SDK provides a unified interface for text generation, structured output (via `generateObject`), embeddings, and streaming. It abstracts provider-specific APIs, making it easy to swap models later. `generateObject` with Zod schemas is particularly valuable for the analysis pipeline where we need structured JSON output (topics, entities, summaries) from Gemini. The SDK also handles streaming for the search synthesis UX.
 
 **Alternatives considered**:
+
 - Direct `@google/generative-ai` SDK: Works but couples all code to Google's API. No structured output helpers, manual JSON parsing.
 - LangChain: Heavier abstraction with more overhead than needed for this use case
 - Single model for everything: Either too expensive (Pro for batch) or too low quality (Flash for synthesis)
@@ -89,6 +96,7 @@ The existing codebase is a bare Nuxt 4 scaffold with no application code yet.
 **Why**: AI synthesis is the most expensive and slowest operation in the search flow. Semantic caching (vector similarity on the query embedding) means semantically similar queries hit the same cache entry. Topic-aware invalidation ensures answers stay fresh when new relevant content arrives without waiting for TTL expiry.
 
 **Alternatives considered**:
+
 - Exact-match query cache: Misses semantic duplicates ("reforma pensional" vs "pension reform")
 - TTL-only: Stale answers for up to 24h after relevant new content
 - Pre-compute answers for all topics: Too expensive, most won't be queried
@@ -170,6 +178,7 @@ answer_cache
 ## Migration Plan
 
 Not applicable — greenfield project. Initial deployment requires:
+
 1. PostgreSQL instance with pgvector extension enabled
 2. Object storage bucket configured (R2/S3)
 3. Environment variables for Groq, Gemini, Podcast Index API keys

@@ -29,7 +29,7 @@
       </div>
 
       <div v-if="error" class="error-banner">
-        Failed to load queue data. {{ error.data?.error || '' }}
+        Failed to load queue data. {{ error.data?.error || "" }}
       </div>
 
       <template v-if="data">
@@ -63,8 +63,14 @@
               <tbody>
                 <tr v-for="sch in data.schedules" :key="sch.id">
                   <td class="mono">{{ sch.id }}</td>
-                  <td class="mono">{{ sch.cron_expression || sch.every_ms + 'ms' }}</td>
-                  <td><span class="badge" :class="`badge-${sch.status}`">{{ sch.status }}</span></td>
+                  <td class="mono">
+                    {{ sch.cron_expression || sch.every_ms + "ms" }}
+                  </td>
+                  <td>
+                    <span class="badge" :class="`badge-${sch.status}`">{{
+                      sch.status
+                    }}</span>
+                  </td>
                   <td>{{ formatTs(sch.last_run_at) }}</td>
                   <td>{{ formatTs(sch.next_run_at) }}</td>
                 </tr>
@@ -79,7 +85,9 @@
             <h2 class="section-title">Jobs</h2>
             <select v-model="statusFilter" class="filter-select">
               <option value="">All statuses</option>
-              <option v-for="s in allStatuses" :key="s" :value="s">{{ s }}</option>
+              <option v-for="s in allStatuses" :key="s" :value="s">
+                {{ s }}
+              </option>
             </select>
           </div>
           <div v-if="data.jobs.length === 0" class="empty">No jobs found</div>
@@ -97,12 +105,18 @@
               </thead>
               <tbody>
                 <tr v-for="job in data.jobs" :key="job.id">
-                  <td><span class="badge" :class="`badge-${job.status}`">{{ job.status }}</span></td>
+                  <td>
+                    <span class="badge" :class="`badge-${job.status}`">{{
+                      job.status
+                    }}</span>
+                  </td>
                   <td class="mono">{{ job.jobName }}</td>
                   <td>{{ job.queue }}</td>
                   <td>{{ formatEpoch(job.acquiredAt) }}</td>
                   <td>{{ formatEpoch(job.finishedAt) }}</td>
-                  <td class="error-cell" :title="job.error || ''">{{ truncate(job.error, 60) }}</td>
+                  <td class="error-cell" :title="job.error || ''">
+                    {{ truncate(job.error, 60) }}
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -114,94 +128,96 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({ layout: false })
+definePageMeta({ layout: false });
 
-const allStatuses = ['pending', 'active', 'delayed', 'completed', 'failed']
+const allStatuses = ["pending", "active", "delayed", "completed", "failed"];
 
-const token = ref('')
-const tokenInput = ref('')
-const authError = ref(false)
-const autoRefresh = ref(true)
-const statusFilter = ref('')
+const token = ref("");
+const tokenInput = ref("");
+const authError = ref(false);
+const autoRefresh = ref(true);
+const statusFilter = ref("");
 
 onMounted(() => {
-  token.value = sessionStorage.getItem('admin_token') || ''
-})
+  token.value = sessionStorage.getItem("admin_token") || "";
+});
 
 function submitToken() {
-  token.value = tokenInput.value
-  sessionStorage.setItem('admin_token', token.value)
-  authError.value = false
+  token.value = tokenInput.value;
+  sessionStorage.setItem("admin_token", token.value);
+  authError.value = false;
 }
 
-const { data, error, refresh } = useFetch('/api/admin/queue', {
-  query: computed(() => statusFilter.value ? { status: statusFilter.value } : {}),
+const { data, error, refresh } = useFetch("/api/admin/queue", {
+  query: computed(() =>
+    statusFilter.value ? { status: statusFilter.value } : {},
+  ),
   headers: computed(() => ({ Authorization: `Bearer ${token.value}` })),
   watch: [token, statusFilter],
   immediate: false,
-})
+});
 
 watch(token, (v) => {
-  if (v) refresh()
-})
+  if (v) refresh();
+});
 
 watch(error, (err) => {
   if (err && (err as any).statusCode === 401) {
-    token.value = ''
-    sessionStorage.removeItem('admin_token')
-    authError.value = true
+    token.value = "";
+    sessionStorage.removeItem("admin_token");
+    authError.value = true;
   }
-})
+});
 
 // Auto-refresh polling
-let interval: ReturnType<typeof setInterval> | null = null
+let interval: ReturnType<typeof setInterval> | null = null;
 
 function startPolling() {
-  stopPolling()
+  stopPolling();
   interval = setInterval(() => {
-    if (token.value) refresh()
-  }, 5000)
+    if (token.value) refresh();
+  }, 5000);
 }
 
 function stopPolling() {
   if (interval) {
-    clearInterval(interval)
-    interval = null
+    clearInterval(interval);
+    interval = null;
   }
 }
 
 watch(autoRefresh, (enabled) => {
-  if (enabled) startPolling()
-  else stopPolling()
-})
+  if (enabled) startPolling();
+  else stopPolling();
+});
 
 onMounted(() => {
-  if (autoRefresh.value) startPolling()
-})
+  if (autoRefresh.value) startPolling();
+});
 
 onUnmounted(() => {
-  stopPolling()
-})
+  stopPolling();
+});
 
 function getCount(status: string): number {
-  if (!data.value) return 0
-  const entry = data.value.summary.find((s: any) => s.status === status)
-  return entry ? entry.count : 0
+  if (!data.value) return 0;
+  const entry = data.value.summary.find((s: any) => s.status === status);
+  return entry ? entry.count : 0;
 }
 
 function formatEpoch(epoch: number | null): string {
-  if (!epoch) return '-'
-  return new Date(epoch).toLocaleString()
+  if (!epoch) return "-";
+  return new Date(epoch).toLocaleString();
 }
 
 function formatTs(ts: string | null): string {
-  if (!ts) return '-'
-  return new Date(ts).toLocaleString()
+  if (!ts) return "-";
+  return new Date(ts).toLocaleString();
 }
 
 function truncate(text: string | null, max: number): string {
-  if (!text) return '-'
-  return text.length > max ? text.slice(0, max) + '...' : text
+  if (!text) return "-";
+  return text.length > max ? text.slice(0, max) + "..." : text;
 }
 </script>
 
@@ -311,11 +327,21 @@ function truncate(text: string | null, max: number): string {
   border-top: 3px solid #94a3b8;
 }
 
-.summary-card.status-pending { border-top-color: #f59e0b; }
-.summary-card.status-active { border-top-color: #3b82f6; }
-.summary-card.status-delayed { border-top-color: #8b5cf6; }
-.summary-card.status-completed { border-top-color: #22c55e; }
-.summary-card.status-failed { border-top-color: #ef4444; }
+.summary-card.status-pending {
+  border-top-color: #f59e0b;
+}
+.summary-card.status-active {
+  border-top-color: #3b82f6;
+}
+.summary-card.status-delayed {
+  border-top-color: #8b5cf6;
+}
+.summary-card.status-completed {
+  border-top-color: #22c55e;
+}
+.summary-card.status-failed {
+  border-top-color: #ef4444;
+}
 
 .summary-count {
   display: block;
@@ -404,11 +430,26 @@ function truncate(text: string | null, max: number): string {
   text-transform: uppercase;
 }
 
-.badge-active { background: #dbeafe; color: #1d4ed8; }
-.badge-pending { background: #fef3c7; color: #92400e; }
-.badge-delayed { background: #ede9fe; color: #6d28d9; }
-.badge-completed { background: #dcfce7; color: #15803d; }
-.badge-failed { background: #fee2e2; color: #b91c1c; }
+.badge-active {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.badge-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+.badge-delayed {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+.badge-completed {
+  background: #dcfce7;
+  color: #15803d;
+}
+.badge-failed {
+  background: #fee2e2;
+  color: #b91c1c;
+}
 
 .error-cell {
   color: #dc2626;
