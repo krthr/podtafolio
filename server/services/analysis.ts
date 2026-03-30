@@ -80,7 +80,7 @@ Be thorough but precise. All text output should be in Spanish.`
  */
 export async function analyzeTranscript(rawText: string): Promise<AnalysisResult> {
   const { object } = await generateObject({
-    model: google('gemini-2.0-flash'),
+    model: google('gemini-3-flash'),
     schema: analysisSchema,
     system: ANALYSIS_PROMPT,
     prompt: rawText,

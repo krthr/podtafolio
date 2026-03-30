@@ -47,11 +47,11 @@
 
 ## 7. Entity Resolution
 
-- [ ] 7.1 Implement entity embedding: embed each extracted entity mention using Vercel AI SDK's `embed` function
-- [ ] 7.2 Implement pgvector similarity search for existing entities with configurable threshold
-- [ ] 7.3 Implement LLM confirmation for borderline matches using Gemini Flash via Vercel AI SDK `generateObject`
-- [ ] 7.4 Implement canonical entity creation: canonical_name, slug, type, aliases array, embedding
-- [ ] 7.5 Implement the resolve-entities job: process all raw mentions from the analyze step, link or create entities, populate episode_entities
+- [x] 7.1 Implement entity embedding: embed each extracted entity mention using Vercel AI SDK's `embed` function
+- [x] 7.2 Implement pgvector similarity search for existing entities with configurable threshold
+- [x] 7.3 Implement LLM confirmation for borderline matches using Gemini Flash via Vercel AI SDK `generateObject`
+- [x] 7.4 Implement canonical entity creation: canonical_name, slug, type, aliases array, embedding
+- [x] 7.5 Implement the resolve-entities job: process all raw mentions from the analyze step, link or create entities, populate episode_entities
 
 ## 8. Semantic Search & Embedding
 
