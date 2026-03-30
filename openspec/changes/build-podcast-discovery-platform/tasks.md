@@ -55,41 +55,41 @@
 
 ## 8. Semantic Search & Embedding
 
-- [ ] 8.1 Implement transcript chunking: split clean_text into overlapping chunks with positional offsets
-- [ ] 8.2 Implement chunk embedding using Vercel AI SDK's `embedMany` function
-- [ ] 8.3 Implement the embed-chunks job: chunk transcript, embed, store in transcript_chunks with pgvector
-- [ ] 8.4 Implement the search API endpoint: embed query, pgvector similarity search on transcript_chunks, return top-K results with episode metadata
-- [ ] 8.5 Implement Gemini Pro answer synthesis via Vercel AI SDK `streamText`: send top-K chunks + query, stream structured answer with source references
-- [ ] 8.6 Implement semantic answer cache: store/retrieve cached answers by query embedding similarity
-- [ ] 8.7 Implement topic-aware cache invalidation in the invalidate-cache job
-- [ ] 8.8 Implement 24h TTL expiration for cached answers
+- [x] 8.1 Implement transcript chunking: split clean_text into overlapping chunks with positional offsets
+- [x] 8.2 Implement chunk embedding using Vercel AI SDK's `embedMany` function
+- [x] 8.3 Implement the embed-chunks job: chunk transcript, embed, store in transcript_chunks with pgvector
+- [x] 8.4 Implement the search API endpoint: embed query, pgvector similarity search on transcript_chunks, return top-K results with episode metadata
+- [x] 8.5 Implement Gemini Pro answer synthesis via Vercel AI SDK `streamText`: send top-K chunks + query, stream structured answer with source references
+- [x] 8.6 Implement semantic answer cache: store/retrieve cached answers by query embedding similarity
+- [x] 8.7 Implement topic-aware cache invalidation in the invalidate-cache job
+- [x] 8.8 Implement 24h TTL expiration for cached answers
 
 ## 9. Public Pages — Layout & Navigation
 
-- [ ] 9.1 Create the app layout with persistent search bar (header with search input, navigation)
-- [ ] 9.2 Implement search bar behavior: navigate to /search?q=<query> on submit from any page
+- [x] 9.1 Create the app layout with persistent search bar (header with search input, navigation)
+- [x] 9.2 Implement search bar behavior: navigate to /search?q=<query> on submit from any page
 
 ## 10. Public Pages — Landing
 
-- [ ] 10.1 Create the landing page (`/`): trending topics (by episode count in last 7 days), recent episodes
-- [ ] 10.2 Create API endpoint for trending topics and recent episodes
-- [ ] 10.3 Handle empty state when no episodes are processed yet
+- [x] 10.1 Create the landing page (`/`): trending topics (by episode count in last 7 days), recent episodes
+- [x] 10.2 Create API endpoint for trending topics and recent episodes
+- [x] 10.3 Handle empty state when no episodes are processed yet
 
 ## 11. Public Pages — Search
 
-- [ ] 11.1 Create the search page (`/search`): query input, AI-synthesized answer display, source episode list
-- [ ] 11.2 Wire search page to the search API endpoint (embed → cache check → synthesis)
-- [ ] 11.3 Display related topic and entity links alongside the answer
-- [ ] 11.4 Handle no-results state with suggestions to browse trending topics
+- [x] 11.1 Create the search page (`/search`): query input, AI-synthesized answer display, source episode list
+- [x] 11.2 Wire search page to the search API endpoint (embed → cache check → synthesis)
+- [x] 11.3 Display related topic and entity links alongside the answer
+- [x] 11.4 Handle no-results state with suggestions to browse trending topics
 
 ## 12. Public Pages — Topic, Entity, Podcast, Episode
 
-- [ ] 12.1 Create the topic page (`/topic/:slug`): topic name, description, related episodes, related entities
-- [ ] 12.2 Create the entity page (`/entity/:slug`): canonical name, type, aliases, episode mentions with context snippets, related topics
-- [ ] 12.3 Create the podcast page (`/podcast/:slug`): podcast metadata, artwork, episode list with summaries
-- [ ] 12.4 Create the episode page (`/episode/:slug`): summary, key points, clean transcript, topics, entities
-- [ ] 12.5 Create API endpoints for each page's data needs
-- [ ] 12.6 Handle 404 states for non-existent slugs
+- [x] 12.1 Create the topic page (`/topic/:slug`): topic name, description, related episodes, related entities
+- [x] 12.2 Create the entity page (`/entity/:slug`): canonical name, type, aliases, episode mentions with context snippets, related topics
+- [x] 12.3 Create the podcast page (`/podcast/:slug`): podcast metadata, artwork, episode list with summaries
+- [x] 12.4 Create the episode page (`/episode/:slug`): summary, key points, clean transcript, topics, entities
+- [x] 12.5 Create API endpoints for each page's data needs
+- [x] 12.6 Handle 404 states for non-existent slugs
 
 ## 13. Integration Testing & Initial Data Load
 

@@ -7,9 +7,8 @@ import type { RawEntity } from '../queue/jobs/resolve-entities'
 
 // ── Config ───────────────────────────────────────────────
 
-const EMBEDDING_MODEL = google.textEmbeddingModel('gemini-embedding-2-preview', {
-  outputDimensionality: 768,
-})
+const EMBEDDING_MODEL = google.textEmbeddingModel('gemini-embedding-2-preview')
+const EMBEDDING_PROVIDER_OPTIONS = { google: { outputDimensionality: 768 } }
 const LLM_MODEL = google('gemini-3-flash')
 
 /** Above this: auto-match (confirmed same entity) */
@@ -26,6 +25,7 @@ export async function embedEntity(name: string): Promise<number[]> {
   const { embedding } = await embed({
     model: EMBEDDING_MODEL,
     value: name,
+    providerOptions: EMBEDDING_PROVIDER_OPTIONS,
   })
   return embedding
 }
