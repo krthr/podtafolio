@@ -1,15 +1,6 @@
-/**
- * Seed script: registers an initial curated list of Colombian podcasts.
- *
- * Usage: npx tsx scripts/seed-podcasts.ts
- *
- * Requires NUXT_DATABASE_URL to be set in .env
- */
-import 'dotenv/config'
-import { drizzle } from 'drizzle-orm/node-postgres'
-import { eq } from 'drizzle-orm'
+import { eq, count } from 'drizzle-orm'
 import RSSParser from 'rss-parser'
-import * as schema from '../server/database/schema'
+import { podcasts } from '../database/schema'
 
 const parser = new RSSParser()
 
@@ -22,7 +13,6 @@ function slugify(text: string): string {
     .replace(/^-|-$/g, '')
 }
 
-// Curated list of Colombian podcasts
 const SEED_PODCASTS = [
   { feedUrl: 'https://feeds.simplecast.com/DeLbQ_cr', title: 'La Pulla' },
   { feedUrl: 'https://anchor.fm/s/10b6e484/podcast/rss', title: 'Presunto Podcast' },
@@ -46,35 +36,34 @@ const SEED_PODCASTS = [
   { feedUrl: 'https://anchor.fm/s/38ff7e4c/podcast/rss', title: 'La W Podcast' },
 ]
 
-async function main() {
-  const databaseUrl = process.env.NUXT_DATABASE_URL
-  if (!databaseUrl) {
-    console.error('NUXT_DATABASE_URL is required. Set it in .env')
-    process.exit(1)
+export default defineNitroPlugin(async () => {
+  const db = useDB()
+
+  // Skip if podcasts already exist
+  const [{ total }] = await db.select({ total: count() }).from(podcasts)
+  if (total > 0) {
+    console.log(`[Seed] ${total} podcasts already exist, skipping`)
+    return
   }
 
-  const db = drizzle(databaseUrl, { schema })
-
-  console.log(`Seeding ${SEED_PODCASTS.length} podcasts...`)
+  console.log(`[Seed] Seeding ${SEED_PODCASTS.length} podcasts...`)
 
   let created = 0
   let skipped = 0
 
   for (const seed of SEED_PODCASTS) {
-    // Check for existing
+    // Safety net: skip if this specific feed already exists
     const existing = await db
       .select()
-      .from(schema.podcasts)
-      .where(eq(schema.podcasts.feedUrl, seed.feedUrl))
+      .from(podcasts)
+      .where(eq(podcasts.feedUrl, seed.feedUrl))
       .limit(1)
 
     if (existing.length > 0) {
-      console.log(`  SKIP: ${seed.title} (already exists)`)
       skipped++
       continue
     }
 
-    // Try to parse feed for metadata
     let feedMeta: { title?: string; description?: string; image?: string; language?: string } = {}
     try {
       const feed = await parser.parseURL(seed.feedUrl)
@@ -84,14 +73,14 @@ async function main() {
         image: feed.image?.url || feed.itunes?.image,
         language: feed.language,
       }
-    } catch (err) {
-      console.warn(`  WARN: Could not parse feed for ${seed.title}`)
+    } catch {
+      console.warn(`[Seed] Could not parse feed for ${seed.title}`)
     }
 
     const title = feedMeta.title || seed.title
     const slug = `${slugify(title)}-${Date.now().toString(36)}`
 
-    await db.insert(schema.podcasts).values({
+    await db.insert(podcasts).values({
       title,
       slug,
       feedUrl: seed.feedUrl,
@@ -100,15 +89,9 @@ async function main() {
       language: feedMeta.language || 'es',
     })
 
-    console.log(`  OK: ${title}`)
+    console.log(`[Seed] OK: ${title}`)
     created++
   }
 
-  console.log(`\nDone. Created: ${created}, Skipped: ${skipped}`)
-  process.exit(0)
-}
-
-main().catch((err) => {
-  console.error('Seed failed:', err)
-  process.exit(1)
+  console.log(`[Seed] Done. Created: ${created}, Skipped: ${skipped}`)
 })
