@@ -22,7 +22,7 @@
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.2",
     "groq-sdk": "^1.1.2",
-    "nuxt": "^4.4.2",
+    "nuxt": "^4.4.6",
     "pg": "^8.20.0",
     "podcastindex": "^1.1.2",
     "rss-parser": "^3.13.0",
